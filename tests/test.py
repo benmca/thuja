@@ -57,5 +57,5 @@ for x in range(len(s.notes)):
 
 print output
     
-s.generate_score("/Users/benmca/Documents/src/sandbox/python/test.sco")
+s.generate_score("test.sco")
 #score  = s.generate_score_string()
