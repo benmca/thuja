@@ -46,5 +46,5 @@ s.generate_notes()
 #for x in s.notes:
     #print(x)
     
-s.generate_score("/Users/benmca/Documents/src/sandbox/python/test.sco")
+s.generate_score("./test.sco")
 #score  = s.generate_score_string()

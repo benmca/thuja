@@ -1,6 +1,9 @@
-
-from event import event
+import composition
+import itemstream 
+import event
 import utils
+
+#import utils
 class score:
     """"""
 
@@ -70,7 +73,7 @@ class score:
             #ret_lines.append(self.gen_lines[gendx])
             #self.notes.append(self.gen_lines[gendx])
         while self.note_count < self.note_limit:
-            note = event()
+            note = composition.event.event()
             note.instr = self.instr
             note.starttime = self.curtime
             note.dur = self.durstream.get_next_value()
