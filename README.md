@@ -1,28 +1,28 @@
 pyComposition
 =============
 
-Python Module for algorithmic composition, based on concepts from Rick Taube's Common Music 1.x  
+Python Module for algorithmic composition, based on concepts from Rick Taube's Common Music 1.x. The module specifically targets Csound, and generates Csound score (.sco) files for inclusion in Csound pieces. 
 
 This doc is a work in progress. 
-
 
 The mental model:
 
 1. Generators (currently the score object) generate notes aka events, given a start time and duration. 
 
-2. the notes generated have, at a minimum, a start time, duration as their first 3 pfields i.e:
+2. the notes generated have an instrument, a start time, and duration as their first 3 pfields i.e:
 
 ```
 #instr	start	dur	
 i3      0.0 	0.1	 	
 ```  
 
-3. Itemstreams define sequences driving successive values of these pfields as notes are generated.  
+3. Itemstreams define sequences driving rhythm, as well as successive values of these pfields as notes are generated.  
 
 ```
 #instr	start	dur		amp		freq
 i3      0.0 	0.1		1 		440
 ```  
+
 Itemstreams can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them randomly or 'in-heap'. 
 
 A sample, with notes:
