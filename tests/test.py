@@ -15,7 +15,6 @@ rhythms = ci.itemstream(['e.','e.','e','q.','e','q.','e','h'],'sequence', tempo=
 rhythms.notetype = 'rhythm'
 amps = ci.itemstream([1])
 
-#pitches = composition.itemstream.itemstream(['c3','e',['c','e','g'],'c4','e',['c','e','g']])
 pitches = ci.itemstream(sum([
     ['c4','c','c','d','c5','c','c','d'],
     ],[]))

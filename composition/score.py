@@ -21,6 +21,8 @@ class score:
         self.time_limit = 0
         self.gen_lines = []
         self.notes = []
+        self.end_lines = []
+        self.score_dur = 0
         
     def generate_score(self, filename = None):
         self.note_count = 0
@@ -41,6 +43,12 @@ class score:
             else:
                 f.writelines(self.notes[x])
             
+        for x in range(len(self.end_lines)):
+            if f == None:
+                print(self.end_lines[x] + "\n")
+            else:
+                f.writelines(self.end_lines[x] + "\n")
+                
         #while self.note_count < self.note_limit:
             #note = [self.instr, self.curtime, self.durstream.get_next_value()]
             #note_is_chording = False
@@ -116,6 +124,9 @@ class score:
             self.notes.append(str(note) + "\n")
                     
             self.note_count = self.note_count + 1
+            if((note.starttime + note.dur) > self.score_dur):
+                self.score_dur = (note.starttime + note.dur)
+
         return ret_lines
     
 
@@ -125,4 +136,6 @@ class score:
             retstring += self.gen_lines[x]
         for y in range(len(self.notes)):
             retstring += self.notes[y]
+        for x in range(len(self.end_lines)):
+            retstring += self.end_lines[x]
         return retstring

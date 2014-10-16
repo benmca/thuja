@@ -25,11 +25,11 @@
     #def resetStreams()
         #indx = 0 
 #import utils
-#import random
 #import score
 ########################################################################
 
 import utils
+import random
 
 class itemstream:
     """"""
