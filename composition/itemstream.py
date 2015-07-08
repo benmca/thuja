@@ -1,40 +1,8 @@
-#class itemstream:
-    #item = None
-    #curItem = None
-    #isChording, isTop, endOfSequence = 0,0,0
-    #indx = 0
-    #modifier = "SEQUENCE"
-    #state = "CUR"
-    #itemStream = []
-    #def __init__(self, *args):
-        #if(len(args) == 1)
-           #self.itemStream = args[0] 
-        #else:
-            #for x in args:
-                #if(isinstance(x,ItemStream)):
-                    #self.itemStream.append(x)
-                #elif(isinstance(x,list)):
-                                    
-                #else:
-                    #self.itemStream = x
-                    #self.itemStream.append(self)
-    
-    #def addItemStream(itemStream)
-        #self.itemStream.append(itemStream)       
-       
-    #def resetStreams()
-        #indx = 0 
-#import utils
-#import score
-########################################################################
-
 import utils
 import random
 
 class itemstream:
     """"""
-
-    #----------------------------------------------------------------------
     def __init__(self, initstream, streammode = 'sequence', notetype = 'number', tempo = 120):
         """Constructor"""
         self.values = initstream
@@ -49,8 +17,8 @@ class itemstream:
         self.is_chording = False
         self.chording_index = 0
         self.current_octave = 0
-        
-    
+        self.note_count = 0;
+
     def get_next_value(self):
         ret = None
         if isinstance(self.values[self.index],list):
@@ -66,7 +34,7 @@ class itemstream:
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
                 if isinstance(self.tempo, list):
-                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo[self.index % len(self.tempo)])
+                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo[self.note_count % len(self.tempo)])
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo)
             
@@ -106,7 +74,7 @@ class itemstream:
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
                 if isinstance(self.tempo, list):
-                    ret = utils.rhythm_to_duration(self.values[self.index], self.tempo[self.index % len(self.tempo)])
+                    ret = utils.rhythm_to_duration(self.values[self.index], self.tempo[self.note_count % len(self.tempo)])
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
             
@@ -128,37 +96,6 @@ class itemstream:
                 
             elif self.streammode == "random":
                 self.index = random.randrange(0,len(self.values))
-                
+
+        self.note_count += 1
         return ret
-
-########################################################################
-
-    
-            
-#rhythms = itemstream(['q.','q.','q'],'heap', tempo=240)
-#rhythms.notetype = 'rhythm'
-#amps = itemstream([1])
-#pitches = itemstream(['c3','e',['c','e','g'],'c4','e',['c','e','g']])
-#pitches.notetype = 'pitch'
-
-#s = score.score(rhythms,[amps,pitches], note_limit=120)
-#s.gen_lines = [';sine','f 1 0 16384 10 1',';saw','f 2 0 256 7 0 128 1 0 -1 128 0',';pulse','f 3 0 256 7 1 128 1 0 -1 128 -1']
-#s.durstream = itemstream([.1])
-##s.generate_score("/Users/benmca/Documents/src/sandbox/python/test.sco")
-##s.generate_score()
-#s.generate_notes()
-
-#rhythms = itemstream(['e.','e.','e'],'heap', tempo=440)
-#rhythms.notetype = 'rhythm'
-#s.rhythmstream = rhythms
-##reset time
-#s.starttime = 0.0
-#s.curtime = s.starttime
-#s.generate_notes()
-##for x in s.notes:
-    ##print(x)
-    
-#s.generate_score("/Users/benmca/Documents/src/sandbox/python/test.sco")
-    
-    
-    
