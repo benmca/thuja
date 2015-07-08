@@ -57,7 +57,7 @@ amps = ci.itemstream([.4])
 
 #pitches = ci.itemstream(['c3','e',['c','e','g'],'c4','e',['c','e','g']])
 pitches = ci.itemstream(
-    ['c6', 'c0'])
+    ['c6', 'r'])
 pitches.streammode = 'sequence'
 pitches.notetype = 'pitch'
 
@@ -78,7 +78,7 @@ amps = ci.itemstream([.4])
 
 #pitches = ci.itemstream(['c3','e',['c','e','g'],'c4','e',['c','e','g']])
 pitches = ci.itemstream(
-    ['c0', 'c6'])
+    ['r', 'c6'])
 pitches.streammode = 'sequence'
 pitches.notetype = 'pitch'
 

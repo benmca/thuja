@@ -11,7 +11,8 @@ import composition.score as cs
 #IdMusic1.wav 
 # ['h',.769], ['h',1.95], ['w'], 3.175], ['h',5.54], ['h'], 6.67], ['w'], 8.0]
 
-rhythms = ci.itemstream(['e.','e.','e','q.','e','q.','e','h'],'sequence', tempo=120)
+# rhythms = ci.itemstream(['e.','e.','e','q.','e','q.','e','h'],'sequence', tempo=[120,60,30])
+rhythms = ci.itemstream(['q'],'sequence', tempo=[120,60,30])
 rhythms.notetype = 'rhythm'
 amps = ci.itemstream([1])
 
@@ -34,7 +35,7 @@ for x in range(len(s.gen_lines)):
 for x in range(len(s.notes)):
     output += s.notes[x]
     
-rhythms = ci.itemstream(['e'],'sequence', tempo=120)
+rhythms = ci.itemstream(['e']*12,'sequence', tempo=[120,60,30])
 #rhythms = composition.itemstream.itemstream(['e.','e.','e'],'heap', tempo=240)
 rhythms.notetype = 'rhythm'
 s.rhythmstream = rhythms

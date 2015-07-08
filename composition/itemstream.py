@@ -65,7 +65,10 @@ class itemstream:
                 ret = result["value"]
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
-                ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo)
+                if isinstance(self.tempo, list):
+                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo[self.index % len(self.tempo)])
+                else:
+                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo)
             
             self.chording_index = self.chording_index + 1
             if self.chording_index == len(self.values[self.index]):
@@ -102,7 +105,10 @@ class itemstream:
                 ret = result["value"]
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
-                ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
+                if isinstance(self.tempo, list):
+                    ret = utils.rhythm_to_duration(self.values[self.index], self.tempo[self.index % len(self.tempo)])
+                else:
+                    ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
             
             if self.streammode == "sequence":
                 if self.index < len(self.values)-1:

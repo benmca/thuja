@@ -11,6 +11,9 @@ def pc_to_freq(pc, default_octave):
         pitch class spec - [note name][s|f|n][octave]
         examples: b4, cs5, af8, an3
         """
+        if pc == 'r':
+                return {"value" : 0, "octave" : 0}
+
         octave = default_octave
         
         pitchindex = int(pc_spec.index(pc[0]))
