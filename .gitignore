@@ -1,0 +1,7 @@
+.DS_Store
+.idea/
+composition/*.pyc
+composition/__pycache__/
+dac0.eps
+*.sco
+tests/*.sco
