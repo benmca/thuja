@@ -90,6 +90,9 @@ class score:
             note_is_chording = False
             rhythm = None
             for j in range(len(self.streams)):
+                # todo - make a stream subclass handle rhythm, pitch and rhythm/indx duties by implementing
+                #   get_next_value. It's a special kind of event that has this cross-pfield relationship,
+                #   loopindx case is one example. Interval case needs to be explored as well.
                 val = self.streams[j].get_next_value()
 
                 #do special case for tuple here - note should be a dictionary of fixed keys so we can special case/set things like rhythm, dur, pitch and starttime
@@ -115,7 +118,7 @@ class score:
                     self.curtime = self.curtime + rhythm
                 else:
                     self.curtime = self.curtime + self.rhythmstream.get_next_value()
-                
+
             #line = "i"
             #for x in range(len(note)):
                 #line = line + (str(note[x]) + " ")

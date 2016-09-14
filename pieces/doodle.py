@@ -63,5 +63,5 @@ for x in range(len(s.notes)):
 
 print(output)
     
-s.generate_score("test.sco")
-#score  = s.generate_score_string()
+#s.generate_score("test.sco")
+score  = s.generate_score_string()

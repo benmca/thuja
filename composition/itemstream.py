@@ -1,16 +1,18 @@
 import utils
 import random
 
+
 class itemstream:
     """"""
-    def __init__(self, initstream, streammode = 'sequence', notetype = 'number', tempo = 120):
+
+    def __init__(self, initstream, streammode='sequence', notetype='number', tempo=120):
         """Constructor"""
         self.values = initstream
         self.index = 0
         self.streammode = streammode
         self.notetype = notetype
         self.heapdict = set()
-        
+
         # used for rhythm streams
         self.tempo = tempo
         # used for pitches etc
@@ -21,9 +23,9 @@ class itemstream:
 
     def get_next_value(self):
         ret = None
-        if isinstance(self.values[self.index],list):
-            if self.is_chording == False:
-                #initial case
+        if isinstance(self.values[self.index], list):
+            if not self.is_chording:
+                # initial case
                 self.is_chording = True
                 self.chording_index = 0
             if self.notetype == 'number':
@@ -34,16 +36,26 @@ class itemstream:
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
                 if isinstance(self.tempo, list):
-                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo[self.note_count % len(self.tempo)])
+                    ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index],
+                                                   self.tempo[self.note_count % len(self.tempo)])
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo)
-            
+            # consider adding a duple type for loopindx...
+            # elif self.notetype == 'duple':
+            #     if isinstance(self.tempo, list):
+            #         ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index],
+            #                                        self.tempo[self.note_count % len(self.tempo)])
+            #     else:
+            #         ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index], self.tempo)
+
+            ## we need a way to say dur = rhythm * 2
+
             self.chording_index = self.chording_index + 1
             if self.chording_index == len(self.values[self.index]):
                 self.is_chording = False
                 self.chording_index = 0
                 if self.streammode == "sequence":
-                    if self.index < len(self.values)-1:
+                    if self.index < len(self.values) - 1:
                         self.index = self.index + 1
                     else:
                         self.index = 0
@@ -52,13 +64,13 @@ class itemstream:
                     if len(self.heapdict) == len(self.values):
                         self.heapdict.clear()
                     while not added:
-                        self.index = random.randrange(0,len(self.values))
+                        self.index = random.randrange(0, len(self.values))
                         if (self.index in self.heapdict) == False:
                             added = True
                             self.heapdict.add(self.index)
                 elif self.streammode == "random":
-                    self.index = random.randrange(0,len(self.values))
-        
+                    self.index = random.randrange(0, len(self.values))
+
         elif isinstance(self.values[self.index], itemstream):
             self.is_chording = False
             # nested stream case
@@ -74,12 +86,13 @@ class itemstream:
                 self.current_octave = result["octave"]
             elif self.notetype == 'rhythm':
                 if isinstance(self.tempo, list):
-                    ret = utils.rhythm_to_duration(self.values[self.index], self.tempo[self.note_count % len(self.tempo)])
+                    ret = utils.rhythm_to_duration(self.values[self.index],
+                                                   self.tempo[self.note_count % len(self.tempo)])
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
-            
+
             if self.streammode == "sequence":
-                if self.index < len(self.values)-1:
+                if self.index < len(self.values) - 1:
                     self.index = self.index + 1
                 else:
                     self.index = 0
@@ -87,15 +100,15 @@ class itemstream:
                 added = False
                 if len(self.heapdict) == len(self.values):
                     self.heapdict.clear()
-                    
+
                 while not added:
-                    self.index = random.randrange(0,len(self.values))
+                    self.index = random.randrange(0, len(self.values))
                     if (self.index in self.heapdict) == False:
                         added = True
                         self.heapdict.add(self.index)
-                
+
             elif self.streammode == "random":
-                self.index = random.randrange(0,len(self.values))
+                self.index = random.randrange(0, len(self.values))
 
         self.note_count += 1
         return ret
