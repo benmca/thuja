@@ -1,8 +1,7 @@
-from composition.itemstream import Itemstream
-from composition.event import Event
+from itemstream import Itemstream
+from event import Event
 import utils
 
-#import utils
 class Score:
     """"""
 
