@@ -2,7 +2,7 @@ import utils
 import random
 
 
-class itemstream:
+class Itemstream:
     """"""
 
     def __init__(self, initstream, streammode='sequence', notetype='number', tempo=120):
@@ -71,7 +71,7 @@ class itemstream:
                 elif self.streammode == "random":
                     self.index = random.randrange(0, len(self.values))
 
-        elif isinstance(self.values[self.index], itemstream):
+        elif isinstance(self.values[self.index], Itemstream):
             self.is_chording = False
             # nested stream case
             pass

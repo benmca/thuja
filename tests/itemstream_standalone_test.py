@@ -1,5 +1,5 @@
 import random
-import math
+from composition.itemstream import Itemstream
 import audiolazy
 
 from composition import itemstream
@@ -7,7 +7,7 @@ from composition import itemstream
 random.seed()
 class PitchQueue:
     curdx = 0
-    rhythm_stream = itemstream.itemstream(['e', 'q', 's', 'q', 's', 's', 's'],'heap', tempo=120)
+    rhythm_stream = Itemstream(['e', 'q', 's', 'q', 's', 's', 's'],'heap', tempo=120)
     rhythm_stream.notetype = 'rhythm'
 
     def __init__(self):
