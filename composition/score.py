@@ -79,8 +79,8 @@ class Score:
             #ret_lines.append(self.gen_lines[gendx])
             #self.notes.append(self.gen_lines[gendx])
         while self.note_count < self.note_limit:
-            note = composition.event.event()
-            if(isinstance(self.instr, itemstream.itemstream)):
+            note = Event()
+            if(isinstance(self.instr, Itemstream)):
                 note.instr = self.instr.get_next_value()
             else:
                 note.instr = self.instr
