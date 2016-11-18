@@ -1,10 +1,8 @@
-import composition
-import itemstream 
-import event
+from itemstream import Itemstream
+from event import Event
 import utils
 
-#import utils
-class score:
+class Score:
     """"""
 
     #----------------------------------------------------------------------
