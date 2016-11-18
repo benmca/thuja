@@ -5,3 +5,6 @@ composition/__pycache__/
 dac0.eps
 *.sco
 tests/*.sco
+PyComposition.egg-info/
+build/
+dist/
