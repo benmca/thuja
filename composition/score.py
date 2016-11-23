@@ -75,9 +75,6 @@ class Score:
         self.curtime = self.starttime
         ret_lines = []
         
-        #for gendx in range(len(self.gen_lines)):
-            #ret_lines.append(self.gen_lines[gendx])
-            #self.notes.append(self.gen_lines[gendx])
         while self.note_count < self.note_limit:
             note = Event()
             if(isinstance(self.instr, Itemstream)):
@@ -86,8 +83,6 @@ class Score:
                 note.instr = self.instr
             note.starttime = self.curtime
             note.dur = self.durstream.get_next_value()
-            #note = [self.instr, self.curtime, self.durstream.get_next_value()]
-            
             note_is_chording = False
             rhythm = None
             for j in range(len(self.streams)):
@@ -96,7 +91,9 @@ class Score:
                 #   loopindx case is one example. Interval case needs to be explored as well.
                 val = self.streams[j].get_next_value()
 
-                #do special case for tuple here - note should be a dictionary of fixed keys so we can special case/set things like rhythm, dur, pitch and starttime
+                #do special case for tuple here - note should be a dictionary of fixed keys so we can special case/set
+                # things like rhythm, dur, pitch and starttime
+                # note: 11.17.2016: this may be done - check test_indexpoints for use
                 if(isinstance(val, dict)):
                     for item in val.iterkeys():
                         if(item == "rhy"):
@@ -109,6 +106,10 @@ class Score:
                             result = utils.pc_to_freq(val[item], self.streams[j].current_octave)
                             self.streams[j].current_octave = result["octave"]
                             note.freq = result["value"]
+                # if val is a function, or tuple containing a function it will map one or params to another.
+                # ex: dur = rhythm * .5
+                # if instr == 3, amp = .5 else amp = 1
+                # elif(isinstance(val, ))
                 else:
                     note.pfields.append(str(val))
                             
