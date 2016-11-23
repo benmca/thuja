@@ -5,7 +5,7 @@ import random
 class Itemstream:
     """"""
 
-    def __init__(self, initstream, streammode='sequence', notetype='number', tempo=120):
+    def __init__(self, initstream, streammode='sequence', notetype='number', tempo=120, tag=''):
         """Constructor"""
         self.values = initstream
         self.index = 0
@@ -19,10 +19,15 @@ class Itemstream:
         self.is_chording = False
         self.chording_index = 0
         self.current_octave = 0
-        self.note_count = 0;
+        self.note_count = 0
+        self.tag = tag
+
+        self.current_value = None
 
     def get_next_value(self):
         ret = None
+        global myScore
+
         if isinstance(self.values[self.index], list):
             if not self.is_chording:
                 # initial case
@@ -111,4 +116,5 @@ class Itemstream:
                 self.index = random.randrange(0, len(self.values))
 
         self.note_count += 1
+        self.current_value = ret
         return ret

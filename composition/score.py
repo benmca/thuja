@@ -21,7 +21,22 @@ class Score:
         self.notes = []
         self.end_lines = []
         self.score_dur = 0
-        
+
+    def reinit(self, rhythmstream, streams, note_limit = 16):
+        self.starttime = 0.0
+        self.curtime = self.starttime
+        self.streams = streams
+        self.instr = 1
+        self.rhythmstream = rhythmstream
+        self.durstream = rhythmstream
+        self.note_limit = note_limit
+        self.note_count = 0
+        self.time_limit = 0
+        self.gen_lines = []
+        self.notes = []
+        self.end_lines = []
+        self.score_dur = 0
+
     def generate_score(self, filename = None):
         self.note_count = 0
         self.curtime = self.starttime
@@ -144,3 +159,5 @@ class Score:
         for x in range(len(self.end_lines)):
             retstring += self.end_lines[x]
         return retstring
+
+global_score = Score(None, None)
