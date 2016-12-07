@@ -26,7 +26,7 @@ class Itemstream:
 
     def get_next_value(self):
         ret = None
-        global myScore
+        # global myScore
 
         if isinstance(self.values[self.index], list):
             if not self.is_chording:

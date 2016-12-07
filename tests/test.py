@@ -34,7 +34,7 @@ for x in range(len(s.gen_lines)):
 for x in range(len(s.notes)):
     output += s.notes[x]
     
-rhythms = Itemstream(['e']*12,'sequence', tempo=[120,60,30])
+rhythms = Itemstream(['e']*12,'sequence', tempo=[120, 60, 30])
 #rhythms = composition.itemstream.itemstream(['e.','e.','e'],'heap', tempo=240)
 rhythms.notetype = 'rhythm'
 s.rhythmstream = rhythms

@@ -92,8 +92,10 @@ class Score:
         
         while self.note_count < self.note_limit:
             note = Event()
-            if(isinstance(self.instr, Itemstream)):
+            if isinstance(self.instr, Itemstream):
                 note.instr = self.instr.get_next_value()
+            # elif:
+            #
             else:
                 note.instr = self.instr
             note.starttime = self.curtime
@@ -109,15 +111,15 @@ class Score:
                 #do special case for tuple here - note should be a dictionary of fixed keys so we can special case/set
                 # things like rhythm, dur, pitch and starttime
                 # note: 11.17.2016: this may be done - check test_indexpoints for use
-                if(isinstance(val, dict)):
+                if isinstance(val, dict):
                     for item in val.iterkeys():
-                        if(item == "rhy"):
+                        if item == "rhy":
                             rhythm = utils.rhythm_to_duration(val[item], self.streams[j].tempo)
-                        if(item == "dur"):
+                        if item == "dur":
                             note.dur = val[item]
-                        if(item == "indx"):
+                        if item == "indx":
                             note.indx = val[item]
-                        if(item == "freq"):
+                        if item == "freq":
                             result = utils.pc_to_freq(val[item], self.streams[j].current_octave)
                             self.streams[j].current_octave = result["octave"]
                             note.freq = result["value"]

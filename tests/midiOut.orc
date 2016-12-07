@@ -18,7 +18,7 @@ instr 1  ;Turned on by MIDI notes on channel 1
 print ifund
 
   ;chord with single key
-  noteondur 	1, ifund,   ivel, idur
+  ;noteondur 	1, ifund,   ivel, idur
 
 endin
 
