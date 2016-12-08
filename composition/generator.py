@@ -25,7 +25,7 @@ class StreamKey:
 
 class Generator:
 
-    def __init__(self, note_limit=16, start_time=0.0, streams=None, pfields=None):
+    def __init__(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[]):
 
         self.start_time = start_time
         self.streams = streams
@@ -45,7 +45,12 @@ class Generator:
             self.pfields = self.streams.keys()
             self.pfields.insert(1, keys.start_time)
 
-    def reinit(self, note_limit=16, start_time=0.0, streams=None, pfields=None):
+        # a place to put stuff to refer to in callables - not sure best way forward here
+        self.context = {}
+
+        self.post_processes = post_processes
+
+    def reinit(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[]):
         self.start_time = start_time
         self.streams = streams
         self.note_limit = note_limit
@@ -62,6 +67,10 @@ class Generator:
         self.pfields = pfields
         if self.pfields is None:
             self.pfields = self.streams.keys()
+
+        self.context = {}
+
+        self.post_processes = post_processes
 
     def update_stream(self, key, stream):
         self.streams[key] = stream
@@ -110,7 +119,7 @@ class Generator:
             for key in self.streams.iterkeys():
                 # this could be a literal or ItemStream
                 if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
-                    value = self.streams[key]
+                    note.pfields[key] = self.streams[key]
                 elif isinstance(self.streams[key], Itemstream):
                     value = self.streams[key].get_next_value()
 
@@ -132,13 +141,20 @@ class Generator:
                     if self.streams[key].is_chording:
                         note_is_chording = True
 
+            for item in self.post_processes:
+                if callable(item):
+                    item(note)
+
             if not note_is_chording:
                 if rhythm is not None:
                     self.cur_time = self.cur_time + rhythm
+                    note.rhythm = rhythm
+                elif note.rhythm is not None:
+                    self.cur_time = self.cur_time + note.rhythm
                 else:
                     rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
-            note.rhythm = rhythm
+                    note.rhythm = rhythm
 
             # after setting primitives and ItemStream-driven values, evaluate functions
             for key in self.streams.iterkeys():
@@ -146,6 +162,7 @@ class Generator:
                 if callable(self.streams[key]):
                     value = self.streams[key](note)
                     note.pfields[key] = value
+
 
             ret_lines.append(str(note) + "\n")
             self.notes.append(str(note) + "\n")

@@ -4,7 +4,9 @@ from score import global_score
 from generator import Generator
 from generator import keys
 from collections import OrderedDict
+import utils
 import numpy as np
+
 
 class TestGenerators(unittest.TestCase):
 
@@ -16,6 +18,7 @@ class TestGenerators(unittest.TestCase):
 
         pitches = Itemstream('c1 c c d c c c d'.split())
         pitches.notetype = 'pitch'
+
         def f(note):
             return note.rhythm * 2
 
@@ -73,6 +76,51 @@ class TestGenerators(unittest.TestCase):
             ],
             note_limit=(len(pitches.values) * 2)
         )
+
+        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.generate_notes()
+        score_string = g.generate_score_string()
+        self.assertTrue(score_string is not None)
+        self.assertTrue(len(score_string.split('\n')) == 22)
+
+    def test_callables_postprocesses(self):
+        rhythms = 'h h w h h h'.split()
+        indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
+        tuplestream = Itemstream(mapping_keys=[keys.rhythm, keys.index], mapping_lists=[rhythms, indexes])
+        pitches = Itemstream(sum([
+            ['c1', 'c', 'c', 'd', 'c1', 'c', 'c', 'd'],
+        ], []))
+        pitches.notetype = 'pitch'
+
+        def post_processs(note):
+            indx = g.context['indexstream'].get_next_value()
+            item = g.context['tuplestream'].values[indx]
+            note.rhythm = utils.rhythm_to_duration(item[keys.rhythm], g.context['tuplestream'].tempo)
+            note.pfields[keys.index] = item[keys.index]
+
+        g = Generator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, lambda note:note.rhythm*2),
+                (keys.amplitude, Itemstream([1])),
+                (keys.frequency, pitches)
+            ]),
+            pfields=[
+                keys.instrument,
+                keys.start_time,
+                keys.duration,
+                keys.amplitude,
+                keys.frequency,
+                'indx'
+            ],
+            note_limit=(len(pitches.values) * 2),
+            post_processes=[post_processs]
+        )
+
+        g.context['indexstream'] = Itemstream([1, 1, 1, 4, 5])
+        g.context['tuplestream'] = tuplestream
+
 
         g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
                        'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
