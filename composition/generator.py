@@ -109,9 +109,9 @@ class Generator:
             rhythm = None
             for key in self.streams.iterkeys():
                 # this could be a literal or ItemStream
-                if not isinstance(self.streams[key], Itemstream):
+                if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
                     value = self.streams[key]
-                else:
+                elif isinstance(self.streams[key], Itemstream):
                     value = self.streams[key].get_next_value()
 
                     # support mapping stream
@@ -131,11 +131,21 @@ class Generator:
 
                     if self.streams[key].is_chording:
                         note_is_chording = True
+
             if not note_is_chording:
                 if rhythm is not None:
                     self.cur_time = self.cur_time + rhythm
                 else:
-                    self.cur_time = self.cur_time + self.streams[keys.rhythm].get_next_value()
+                    rhythm = self.streams[keys.rhythm].get_next_value()
+                    self.cur_time = self.cur_time + rhythm
+            note.rhythm = rhythm
+
+            # after setting primitives and ItemStream-driven values, evaluate functions
+            for key in self.streams.iterkeys():
+                # this could be a literal or ItemStream
+                if callable(self.streams[key]):
+                    value = self.streams[key](note)
+                    note.pfields[key] = value
 
             ret_lines.append(str(note) + "\n")
             self.notes.append(str(note) + "\n")
