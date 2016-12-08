@@ -44,6 +44,43 @@ class TestGenerators(unittest.TestCase):
         score_string = g.generate_score_string()
         self.assertTrue(score_string is not None)
         self.assertTrue(len(score_string.split('\n')) == 22)
+
+    def test_callables_lambda(self):
+        tuplestream = Itemstream(
+            [{keys.rhythm: "h", "indx": .769}, {keys.rhythm: "h", "indx": 1.95}, {keys.rhythm: "w", "indx": 3.175},
+             {keys.rhythm: "h", "indx": 5.54}, {keys.rhythm: "h", "indx": 6.67}, {keys.rhythm: "h", "indx": 8.0}]
+        )
+        pitches = Itemstream(sum([
+            ['c1', 'c', 'c', 'd', 'c1', 'c', 'c', 'd'],
+        ], []))
+        pitches.notetype = 'pitch'
+
+        g = Generator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, lambda note:note.rhythm*2),
+                ('rhy|indx', tuplestream),
+                (keys.amplitude, Itemstream([1])),
+                (keys.frequency, pitches)
+            ]),
+            pfields=[
+                keys.instrument,
+                keys.start_time,
+                keys.duration,
+                keys.amplitude,
+                keys.frequency,
+                'indx'
+            ],
+            note_limit=(len(pitches.values) * 2)
+        )
+
+        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.generate_notes()
+        score_string = g.generate_score_string()
+        self.assertTrue(score_string is not None)
+        self.assertTrue(len(score_string.split('\n')) == 22)
+
     def test_indexpoints(self):
         tuplestream = Itemstream(
             [{keys.rhythm: "h", "indx": .769}, {keys.rhythm: "h", "indx": 1.95}, {keys.rhythm: "w", "indx": 3.175},
