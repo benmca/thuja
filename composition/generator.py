@@ -63,6 +63,9 @@ class Generator:
         if self.pfields is None:
             self.pfields = self.streams.keys()
 
+    def update_stream(self, key, stream):
+        self.streams[key] = stream
+
     def generate_score(self, filename=None):
         self.note_count = 0
         self.cur_time = self.start_time
@@ -105,27 +108,29 @@ class Generator:
             note_is_chording = False
             rhythm = None
             for key in self.streams.iterkeys():
-                value = self.streams[key].get_next_value()
-
-                # support mapping stream
-                # i.e.  [{"rhy": "h", "indx": 5.54}, {"rhy": "h", "indx": 6.67}, {"rhy": "h", "indx": 8.0}]
-                if isinstance(value, dict):
-                    for item in value.iterkeys():
-                        if item == keys.rhythm:
-                            # todo - where to put tempo? For now, keep it in a placeholder rhythmstream for this case
-                            rhythm = utils.rhythm_to_duration(value[item], 120)
-                        elif item == "freq":
-                            # todo - where to put current octave? For now, keep it in a placeholder pitch stream for this case
-                            result = utils.pc_to_freq(value[item], self.streams[item].current_octave)
-                            self.streams[item].current_octave = result["octave"]
-                            note.pfields[item] = result["value"]
-                        else:
-                            note.pfields[item] = value[item]
+                # this could be a literal or ItemStream
+                if not isinstance(self.streams[key], Itemstream):
+                    value = self.streams[key]
                 else:
-                    note.pfields[key] = value
+                    value = self.streams[key].get_next_value()
 
-                if self.streams[key].is_chording:
-                    note_is_chording = True
+                    # support mapping stream
+                    # i.e.  [{"rhy": "h", "indx": 5.54}, {"rhy": "h", "indx": 6.67}, {"rhy": "h", "indx": 8.0}]
+                    if isinstance(value, dict):
+                        for item in value.iterkeys():
+                            if item == keys.rhythm:
+                                rhythm = utils.rhythm_to_duration(value[item], self.streams[key].tempo)
+                            elif item == "freq":
+                                result = utils.pc_to_freq(value[item], self.streams[key].current_octave)
+                                self.streams[item].current_octave = result["octave"]
+                                note.pfields[item] = result["value"]
+                            else:
+                                note.pfields[item] = value[item]
+                    else:
+                        note.pfields[key] = value
+
+                    if self.streams[key].is_chording:
+                        note_is_chording = True
             if not note_is_chording:
                 if rhythm is not None:
                     self.cur_time = self.cur_time + rhythm
