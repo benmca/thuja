@@ -7,14 +7,14 @@ from collections import OrderedDict
 import numpy as np
 
 class TestGenerators(unittest.TestCase):
+
     def test_callables(self):
         tuplestream = Itemstream(
             [{keys.rhythm: "h", "indx": .769}, {keys.rhythm: "h", "indx": 1.95}, {keys.rhythm: "w", "indx": 3.175},
              {keys.rhythm: "h", "indx": 5.54}, {keys.rhythm: "h", "indx": 6.67}, {keys.rhythm: "h", "indx": 8.0}]
         )
-        pitches = Itemstream(sum([
-            ['c1', 'c', 'c', 'd', 'c1', 'c', 'c', 'd'],
-        ], []))
+
+        pitches = Itemstream('c1 c c d c c c d'.split())
         pitches.notetype = 'pitch'
         def f(note):
             return note.rhythm * 2

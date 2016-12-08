@@ -1,10 +1,49 @@
 import unittest
 from itemstream import Itemstream
 from score import global_score
-
+from generator import keys
 import numpy as np
 
 class TestItemstreams(unittest.TestCase):
+    def test_mappings(self):
+        rhythms = 'h h w h h h'.split()
+        indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
+        stream = Itemstream(mapping_keys=[keys.rhythm, keys.index], mapping_lists=[rhythms, indexes])
+        self.assertTrue(stream.values == [
+                            {keys.rhythm: "h", keys.index: .769},
+                            {keys.rhythm: "h", keys.index: 1.95},
+                            {keys.rhythm: "w", keys.index: 3.175},
+                            {keys.rhythm: "h", keys.index: 5.54},
+                            {keys.rhythm: "h", keys.index: 6.67},
+                            {keys.rhythm: "h", keys.index: 8.0}])
+
+        rhythms = 'h h w h h w q'.split()
+        indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
+        stream = Itemstream(mapping_keys=[keys.rhythm, keys.index], mapping_lists=[rhythms, indexes])
+        self.assertTrue(stream.values == [
+            {keys.rhythm: "h", keys.index: .769},
+            {keys.rhythm: "h", keys.index: 1.95},
+            {keys.rhythm: "w", keys.index: 3.175},
+            {keys.rhythm: "h", keys.index: 5.54},
+            {keys.rhythm: "h", keys.index: 6.67},
+            {keys.rhythm: "w", keys.index: 8.0},
+            {keys.rhythm: "q", keys.index: .769}
+        ])
+
+        rhythms = 'h h w h h w q'.split()
+        indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
+        amps = [1, 0]
+        stream = Itemstream(mapping_keys=[keys.rhythm, keys.index, keys.amplitude], mapping_lists=[rhythms, indexes, amps])
+        self.assertTrue(stream.values == [
+            {keys.rhythm: "h", keys.index: .769, keys.amplitude: 1},
+            {keys.rhythm: "h", keys.index: 1.95, keys.amplitude: 0},
+            {keys.rhythm: "w", keys.index: 3.175, keys.amplitude: 1},
+            {keys.rhythm: "h", keys.index: 5.54, keys.amplitude: 0},
+            {keys.rhythm: "h", keys.index: 6.67, keys.amplitude: 1},
+            {keys.rhythm: "w", keys.index: 8.0, keys.amplitude: 0},
+            {keys.rhythm: "q", keys.index: .769, keys.amplitude: 1}
+        ])
+
     def test_indexpoints(self):
         tuplestream = Itemstream(
             [{"rhy": "h", "indx": .769}, {"rhy": "h", "indx": 1.95}, {"rhy": "w", "indx": 3.175},

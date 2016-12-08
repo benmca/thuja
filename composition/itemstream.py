@@ -5,7 +5,7 @@ import random
 class Itemstream:
     """"""
 
-    def __init__(self, initstream, streammode='sequence', notetype='number', tempo=120, tag=''):
+    def __init__(self, initstream=None, streammode='sequence', notetype='number', tempo=120, tag='', mapping_keys=None, mapping_lists=None):
         """Constructor"""
         self.values = initstream
         self.index = 0
@@ -23,6 +23,34 @@ class Itemstream:
         self.tag = tag
 
         self.current_value = None
+
+        if mapping_keys is not None and mapping_lists is not None:
+            self.values = []
+            map_length = 0
+            map_index = 0
+            # find the longest list
+            for x in range(len(mapping_lists)):
+                if len(mapping_lists[x]) > map_length:
+                    map_length = len(mapping_lists[x])
+                    map_index = x
+
+            for i in range(map_length):
+                item = {}
+                for keydx in range(len(mapping_keys)):
+                    key = mapping_keys[keydx]
+                    item[key] = mapping_lists[keydx][i % len(mapping_lists[keydx])]
+                self.values.append(item)
+
+
+    # for each key, take an item from each list and map them ala
+    # for a in len(x):z.append({'xval':x[a],'yval':y[a]})
+
+    # def create_mapping_stream(self, keys, lists):
+    #   maybe the longest list drives the length?
+
+    #     for i in range(len(lists)):
+    #         for key in keys:
+    #
 
     def get_next_value(self):
         ret = None
