@@ -121,8 +121,11 @@ class TestGenerators(unittest.TestCase):
         g.context['indexstream'] = Itemstream([1, 1, 1, 4, 5])
         g.context['tuplestream'] = tuplestream
 
-
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
+        g.gen_lines = [';sine\n',
+                       'f 1 0 16384 10 1\n',
+                       ';saw',
+                       'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+                       ';pulse\n',
                        'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
         g.generate_notes()
         score_string = g.generate_score_string()

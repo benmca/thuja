@@ -25,7 +25,7 @@ class StreamKey:
 
 class Generator:
 
-    def __init__(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[]):
+    def __init__(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[], init_context={}, gen_lines=[]):
 
         self.start_time = start_time
         self.streams = streams
@@ -34,7 +34,7 @@ class Generator:
         self.cur_time = 0.0
         self.time_limit = 0
 
-        self.gen_lines = []
+        self.gen_lines = gen_lines
         self.note_count = 0
         self.notes = []
         self.end_lines = []
@@ -46,11 +46,11 @@ class Generator:
             self.pfields.insert(1, keys.start_time)
 
         # a place to put stuff to refer to in callables - not sure best way forward here
-        self.context = {}
+        self.context = init_context
 
         self.post_processes = post_processes
 
-    def reinit(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[]):
+    def reinit(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[], init_context={}, gen_lines=[]):
         self.start_time = start_time
         self.streams = streams
         self.note_limit = note_limit
@@ -58,7 +58,7 @@ class Generator:
         self.cur_time = 0.0
         self.time_limit = 0
 
-        self.gen_lines = []
+        self.gen_lines = gen_lines
         self.note_count = 0
         self.notes = []
         self.end_lines = []
@@ -68,12 +68,14 @@ class Generator:
         if self.pfields is None:
             self.pfields = self.streams.keys()
 
-        self.context = {}
+        self.context = init_context
 
         self.post_processes = post_processes
+        return self
 
     def update_stream(self, key, stream):
         self.streams[key] = stream
+        return self
 
     def generate_score(self, filename=None):
         self.note_count = 0
@@ -103,6 +105,7 @@ class Generator:
 
         if f is not None:
             f.close()
+        return self
 
     def generate_notes(self):
         self.note_count = 0
@@ -170,7 +173,7 @@ class Generator:
             if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
                 self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
 
-        return ret_lines
+        return self
 
     def generate_score_string(self):
         retstring = ""
