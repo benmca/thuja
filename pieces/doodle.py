@@ -1,15 +1,9 @@
-#use variable blueDuration for duration from blue
-#use variable userConfigDir for user's .blue dir
-#use variable blueLibDir for blue's lib directory
-#use variable blueProjectDir for this project's directory
-#use variable score at end of script to bring score back into blue
 from composition.itemstream import Itemstream
-from composition.score import Score
-import csnd6
-import os
-
-#IdMusic1.wav 
-# ['h',.769], ['h',1.95], ['w'], 3.175], ['h',5.54], ['h'], 6.67], ['w'], 8.0]
+from composition.generator import Generator
+from composition.generator import keys
+from collections import OrderedDict
+from composition import utils
+import copy
 
 rhythms = Itemstream(sum([
     ['e.','e.','e','q.','e','q.','e','h'],
@@ -19,7 +13,6 @@ rhythms = Itemstream(sum([
 rhythms.notetype = 'rhythm'
 amps = Itemstream([1])
 
-#pitches = Itemstream(['c3','e',['c','e','g'],'c4','e',['c','e','g']])
 pitches = Itemstream(sum([
     ['c4','c','c','d','c5','c','c','d'],
     ['c3','e',['c','e','g'],'c4','e',['c','e','g']],
@@ -27,43 +20,46 @@ pitches = Itemstream(sum([
     ],[]))
 pitches.streammode = 'heap'
 pitches.notetype = 'pitch'
-s = Score(rhythms,[amps,pitches], note_limit=(len(pitches.values)*4))
-s.gen_lines = [';sine\n','f 1 0 16384 10 1\n',';saw','f 2 0 256 7 0 128 1 0 -1 128 0\n',';pulse\n','f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-s.durstream = Itemstream([.1])
-s.instr = 1
-#s.generate_score("/Users/benmca/Documents/src/sandbox/python/test.sco")
-#s.generate_score()
-s.generate_notes()
+
+g = Generator(
+    streams=OrderedDict([
+        (keys.instrument, 1),
+        (keys.rhythm, rhythms),
+        (keys.duration, Itemstream([.1])),
+        (keys.amplitude, 1),
+        (keys.frequency, pitches),
+        (keys.pan, 45),
+        (keys.distance, 10),
+        (keys.percent, .1)
+    ]),
+    pfields=None,
+    note_limit=(len(pitches.values)*4),
+    gen_lines = [';sine\n',
+               'f 1 0 16384 10 1\n',
+               ';saw',
+               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+               ';pulse\n',
+               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+)
 #
 # output = ""
 # for x in range(len(s.gen_lines)):
 #     output += s.gen_lines[x]
 # for x in range(len(s.notes)):
 #     output += s.notes[x]
-    
-rhythms = Itemstream(['e'],'sequence', tempo=120)
-#rhythms = composition.itemstream.itemstream(['e.','e.','e'],'heap', tempo=240)
-rhythms.notetype = 'rhythm'
-s.rhythmstream = rhythms
-pitches = Itemstream(sum([
+
+g2 = copy.deepcopy(g)
+g2.streams[keys.rhythm] = Itemstream(['e'],'sequence', tempo=120)
+g2.streams[keys.rhythm].notetype = 'rhythm'
+g2.streams[keys.frequency] = Itemstream(sum([
     ['fs6'],
     ],[]))
-pitches.notetype = 'pitch'
-s.streams[1] = pitches
-s.note_limit = 64
-#reset time
-s.starttime = 0.0
-s.curtime = s.starttime
-#for x in s.notes:
-    #print(x)
-s.instr = 1
-s.generate_notes()
-# for x in range(len(s.notes)):
-#     output += s.notes[x]
-#
-# print(output)
-    
-s.generate_score("test.sco")
+g2.streams[keys.frequency].notetype = 'pitch'
+g2.note_limit = 64
+g.add_generator(g2)
+g.generate_notes()
+
+g.generate_score("../../csound/2015/test.sco")
 
 
 

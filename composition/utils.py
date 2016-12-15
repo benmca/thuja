@@ -48,14 +48,15 @@ def rhythm_to_duration(rhythm_string, tempo):
     val = 0.0
 
     strings = rhythm_string.split('+')
+
     for s in strings:
-            val = 0.0
-            if multipliers.has_key(s[0]):
-                    val = (dur_of_quarter * multipliers[s[0]])
-            if s.find("..") != -1:
-                    val += val*.25
-            elif s.find('.') != -1:
-                    val += val*.5
-            ret += val
+        val = 0.0
+        if multipliers.has_key(s[0]):
+                val = (dur_of_quarter * multipliers[s[0]])
+        if s.find("..") != -1:
+                val += val*.25
+        elif s.find('.') != -1:
+                val += val*.5
+        ret += val
     return ret
 

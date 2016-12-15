@@ -98,7 +98,7 @@ class Generator:
             note_is_chording = False
             rhythm = None
             for key in self.streams.iterkeys():
-                if key is 'rhy':
+                if key is keys.rhythm:
                     continue
                 # this could be a literal or ItemStream
                 if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
@@ -135,7 +135,7 @@ class Generator:
                 elif note.rhythm is not None:
                     self.cur_time = self.cur_time + note.rhythm
                 else:
-                    rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].get_next_value(), self.streams[keys.rhythm].tempo)
+                    rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
 
