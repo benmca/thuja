@@ -159,6 +159,8 @@ class Generator:
             generator.start_time += self.start_time
             generator.generate_notes()
             self.notes.extend(generator.notes)
+            if generator.score_dur > self.score_dur:
+                self.score_dur = generator.score_dur
 
         return self
 

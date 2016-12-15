@@ -59,6 +59,7 @@ g2.note_limit = 64
 g.add_generator(g2)
 g.generate_notes()
 
+g.end_lines = ['i99 0 ' + str(g.score_dur) + '\n']
 g.generate_score("../../csound/2015/test.sco")
 
 
