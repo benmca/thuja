@@ -73,19 +73,30 @@ indexes = [0.018, .697, 1.376, 1.538, 1.869, 2.032, 2.2, 2.543, 2.705, 3.373, 3.
 g.streams[keys.rhythm] = Itemstream(rhythms)
 g.streams[keys.index] = Itemstream([indexes[13]])
 
-g.note_limit = 48
+g.note_limit=0
+g.time_limit = 30
 g.start_time = 0
 g.streams[keys.pan] = 45
-g.streams[keys.amplitude] = .5
+g.streams[keys.amplitude] = .75
+
+snare = copy.deepcopy(g)
+snare.streams[keys.rhythm] = Itemstream('e. s q'.split())
+snare.streams[keys.index] = Itemstream([indexes[11]])
+snare.streams[keys.amplitude] = Itemstream([0,1,0])
+snare.streams[keys.pan] = 10
+snare.add_bars_to_starttime(bars=4,beats=0,num=4,denom=4, tempo=snare.streams[keys.rhythm].tempo)
+g.add_generator(snare)
+
+hh = copy.deepcopy(g)
+hh.streams[keys.rhythm] = Itemstream('e e s s s s'.split())
+hh.streams[keys.index] = Itemstream([indexes[0]])
+hh.streams[keys.amplitude] = Itemstream([.5])
+hh.streams[keys.duration] = Itemstream([.1]*2+[.05]*4)
+hh.streams[keys.pan] = 80
+hh.add_bars_to_starttime(bars=8,beats=0,num=4,denom=4, tempo=hh.streams[keys.rhythm].tempo)
+g.add_generator(hh)
+
 g.generate_notes()
-
-g2 = copy.copy(g)
-g2.streams[keys.rhythm] = Itemstream('e. s q'.split())
-g2.streams[keys.index] = Itemstream([indexes[11]])
-g2.streams[keys.amplitude] = Itemstream([0,1,0])
-g2.generate_notes()
-g.notes.extend(g2.notes)
-
 
 
 

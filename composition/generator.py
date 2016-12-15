@@ -47,31 +47,9 @@ class Generator:
 
         # a place to put stuff to refer to in callables - not sure best way forward here
         self.context = init_context
-
         self.post_processes = post_processes
+        self.generators = []
 
-    def reinit(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[], init_context={}, gen_lines=[]):
-        self.start_time = start_time
-        self.streams = streams
-        self.note_limit = note_limit
-
-        self.cur_time = 0.0
-        self.time_limit = 0
-
-        self.gen_lines = gen_lines
-        self.note_count = 0
-        self.notes = []
-        self.end_lines = []
-        self.score_dur = 0
-
-        self.pfields = pfields
-        if self.pfields is None:
-            self.pfields = self.streams.keys()
-
-        self.context = init_context
-
-        self.post_processes = post_processes
-        return self
 
     def update_stream(self, key, stream):
         self.streams[key] = stream
@@ -112,7 +90,7 @@ class Generator:
         self.cur_time = self.start_time
         ret_lines = []
 
-        while self.note_count < self.note_limit:
+        while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
             note = NewEvent(pfields=self.pfields)
             note.pfields[keys.start_time] = self.cur_time
 
@@ -168,14 +146,29 @@ class Generator:
                     value = self.streams[key](note)
                     note.pfields[key] = value
 
+            if self.time_limit > 0 and self.cur_time > self.time_limit:
+                break
+            else:
+                ret_lines.append(str(note) + "\n")
+                self.notes.append(str(note) + "\n")
+                self.note_count += 1
+                if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
+                    self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
 
-            ret_lines.append(str(note) + "\n")
-            self.notes.append(str(note) + "\n")
-            self.note_count += 1
-            if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
-                self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
+        for generator in self.generators:
+            generator.start_time += self.start_time
+            generator.generate_notes()
+            self.notes.extend(generator.notes)
 
         return self
+
+    def add_generator(self, other):
+        if isinstance(other, Generator):
+            self.generators.append(other)
+
+    def add_bars_to_starttime(self, bars=1, beats=0, num=4, denom=4, tempo=120):
+        beat_duration = 60.0/tempo
+        self.start_time += (beat_duration*num*bars)+(beat_duration*beats)
 
     def generate_score_string(self):
         retstring = ""
