@@ -1,25 +1,32 @@
+from composition.itemstream import notetypes
+from composition.itemstream import streammodes
 from composition.itemstream import Itemstream
 from composition.generator import Generator
 from composition.generator import keys
 from collections import OrderedDict
 from composition import utils
 import copy
+import csnd6
 
 rhythms = Itemstream(sum([
     ['e.','e.','e','q.','e','q.','e','h'],
     ['s','s','s','s','s','s','s','s','s','s','s','s','s','s','s','s','s','s','s','s'],
     ],[]
-    ),'sequence', tempo=120)
-rhythms.notetype = 'rhythm'
+    ),
+    streammode=streammodes.sequence,
+    tempo=120,
+    notetype=notetypes.rhythm)
+
 amps = Itemstream([1])
 
 pitches = Itemstream(sum([
     ['c4','c','c','d','c5','c','c','d'],
     ['c3','e',['c','e','g'],'c4','e',['c','e','g']],
     [['c','e','g'],['c','e','g'],['c','d','e'],['e','f','g']],
-    ],[]))
-pitches.streammode = 'heap'
-pitches.notetype = 'pitch'
+    ],[]),
+    streammode=streammodes.heap,
+    notetype=notetypes.pitch
+)
 
 g = Generator(
     streams=OrderedDict([
@@ -41,45 +48,23 @@ g = Generator(
                ';pulse\n',
                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
 )
-#
-# output = ""
-# for x in range(len(s.gen_lines)):
-#     output += s.gen_lines[x]
-# for x in range(len(s.notes)):
-#     output += s.notes[x]
 
 g2 = copy.deepcopy(g)
-g2.streams[keys.rhythm] = Itemstream(['e'],'sequence', tempo=120)
-g2.streams[keys.rhythm].notetype = 'rhythm'
-g2.streams[keys.frequency] = Itemstream(sum([
-    ['fs6'],
-    ],[]))
-g2.streams[keys.frequency].notetype = 'pitch'
+g2.streams[keys.rhythm] = Itemstream(['e'],'sequence', tempo=120, notetype=notetypes.rhythm)
+g2.streams[keys.frequency] = Itemstream(['c5','g3']*4+['f5','c3']*4+['c5','g3']*4+['g5','d3']*4,notetype=notetypes.pitch)
 g2.note_limit = 64
 g.add_generator(g2)
 g.generate_notes()
 
-g.end_lines = ['i99 0 ' + str(g.score_dur) + '\n']
-g.generate_score("../../csound/2015/test.sco")
+g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 
-
-
-# score = s.generate_score_string()
-# orc = open('../../csound/2015/midiout.orc', 'r').read()
-
-# c = csnd6.Csound()
-# c.SetOption("-odac")  # Using SetOption() to configure Csound
-                      # Note: use only one commandline flag at a time
-# c.SetOption("-M0")
-# c.SetOption("-Q0")
-# c.SetOption("-B512")
-# c.SetOption("-b64")
-# c.SetOption("-d")
-
-# c.CompileOrc(orc)     # Compile the Csound Orchestra string
-# c.ReadScore(score)      # Compile the Csound SCO String
-# c.Start()  # When compiling from strings, this call is necessary before doing any performing
-# c.Perform()  # Run Csound to completion
-# c.Stop()
-
-# os.execvp('csound','-odac -Q0 -B512 -b64 -d ../../csound/2015/midiout.orc test.sco'.split())
+with open ("/Users/benmca/src/csound/2015/sine.orc", "r") as f:
+    orc_string=f.read()
+score_string = g.generate_score_string()
+cs = csnd6.Csound()
+cs.CompileOrc(orc_string)
+cs.ReadScore(score_string)
+cs.SetOption('-odac')
+cs.Start()
+cs.Perform()
+cs.Stop()

@@ -1,11 +1,36 @@
 import utils
 import random
 
+class Notetypes:
+    """values for itemstream notetypes"""
+    def __init__(self):
+        self.rhythm = 'rhythm'
+        self.pitch = 'pitch'
+        self.number = 'number'
+
+class Streammodes:
+    """values for itemstream modes"""
+    def __init__(self):
+        self.sequence = 'sequence'
+        self.heap = 'heap'
+        self.random = 'random'
+
+
+
+
+streammodes = Streammodes()
+notetypes = Notetypes()
 
 class Itemstream:
     """"""
 
-    def __init__(self, initstream=None, streammode='sequence', notetype='number', tempo=120, tag='', mapping_keys=None, mapping_lists=None):
+    def __init__(self, initstream=None,
+                 streammode=streammodes.sequence,
+                 notetype=notetypes.number,
+                 tempo=120,
+                 tag='',
+                 mapping_keys=None,
+                 mapping_lists=None):
         """Constructor"""
         self.values = initstream
         self.index = 0
@@ -42,16 +67,6 @@ class Itemstream:
                 self.values.append(item)
 
 
-    # for each key, take an item from each list and map them ala
-    # for a in len(x):z.append({'xval':x[a],'yval':y[a]})
-
-    # def create_mapping_stream(self, keys, lists):
-    #   maybe the longest list drives the length?
-
-    #     for i in range(len(lists)):
-    #         for key in keys:
-    #
-
     def get_next_value(self):
         ret = None
         # global myScore
@@ -61,13 +76,13 @@ class Itemstream:
                 # initial case
                 self.is_chording = True
                 self.chording_index = 0
-            if self.notetype == 'number':
+            if self.notetype == notetypes.number:
                 ret = self.values[self.index][self.chording_index]
-            elif self.notetype == 'pitch':
+            elif self.notetype == notetypes.pitch:
                 result = utils.pc_to_freq(self.values[self.index][self.chording_index], self.current_octave)
                 ret = result["value"]
                 self.current_octave = result["octave"]
-            elif self.notetype == 'rhythm':
+            elif self.notetype == notetypes.rhythm:
                 if isinstance(self.tempo, list):
                     ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index],
                                                    self.tempo[self.note_count % len(self.tempo)])
@@ -87,12 +102,12 @@ class Itemstream:
             if self.chording_index == len(self.values[self.index]):
                 self.is_chording = False
                 self.chording_index = 0
-                if self.streammode == "sequence":
+                if self.streammode == streammodes.sequence:
                     if self.index < len(self.values) - 1:
                         self.index = self.index + 1
                     else:
                         self.index = 0
-                elif self.streammode == "heap":
+                elif self.streammode == streammodes.heap:
                     added = False
                     if len(self.heapdict) == len(self.values):
                         self.heapdict.clear()
@@ -101,7 +116,7 @@ class Itemstream:
                         if (self.index in self.heapdict) == False:
                             added = True
                             self.heapdict.add(self.index)
-                elif self.streammode == "random":
+                elif self.streammode == streammodes.random:
                     self.index = random.randrange(0, len(self.values))
 
         elif isinstance(self.values[self.index], Itemstream):
@@ -111,13 +126,13 @@ class Itemstream:
         else:
             self.is_chording = False
             # default case
-            if self.notetype == 'number':
+            if self.notetype == notetypes.number:
                 ret = self.values[self.index]
-            elif self.notetype == 'pitch':
+            elif self.notetype == notetypes.pitch:
                 result = utils.pc_to_freq(self.values[self.index], self.current_octave)
                 ret = result["value"]
                 self.current_octave = result["octave"]
-            elif self.notetype == 'rhythm':
+            elif self.notetype == notetypes.rhythm:
                 if isinstance(self.tempo, list):
                     ret = utils.rhythm_to_duration(self.values[self.index],
                                                    self.tempo[self.note_count % len(self.tempo)])
@@ -127,12 +142,12 @@ class Itemstream:
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
 
-            if self.streammode == "sequence":
+            if self.streammode == streammodes.sequence:
                 if self.index < len(self.values) - 1:
                     self.index = self.index + 1
                 else:
                     self.index = 0
-            elif self.streammode == "heap":
+            elif self.streammode == streammodes.heap:
                 added = False
                 if len(self.heapdict) == len(self.values):
                     self.heapdict.clear()
@@ -143,7 +158,7 @@ class Itemstream:
                         added = True
                         self.heapdict.add(self.index)
 
-            elif self.streammode == "random":
+            elif self.streammode == streammodes.random:
                 self.index = random.randrange(0, len(self.values))
 
         self.note_count += 1

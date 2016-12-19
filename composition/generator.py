@@ -23,9 +23,16 @@ class StreamKey:
         self.percent = 'pct'
 
 
+
 class Generator:
 
-    def __init__(self, note_limit=16, start_time=0.0, streams=None, pfields=None, post_processes=[], init_context={}, gen_lines=[]):
+    def __init__(self, note_limit=16,
+                 start_time=0.0,
+                 streams=None,
+                 pfields=None,
+                 post_processes=[],
+                 init_context={},
+                 gen_lines=[]):
 
         self.start_time = start_time
         self.streams = streams
