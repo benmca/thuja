@@ -12,6 +12,54 @@ pyComposition is built on a two simple classes that deliver a ton of flexibility
 
 These docs are a work-in-progress.
 
+#pycomposition.itemstream
+
+###desc
+
+Itemstreams are the basic compositional building blocks of pyComposition, and are just what the name implies: streams of items. 
+
+### ctor with list
+
+To construct an Itemstream, decide which pfield in a score you want to generate values for, prepare a list of values, 
+
+Each pfield in a csound score is backed by an itemstream object, 
+
+###ctor with function
+
+todo 
+
+###notetype: pitch example
+
+todo 
+
+###notetype: rhythm example
+
+todo 
+
+###streammode: sequence, heap, random
+
+todo 
+
+#pycomposition.generator
+
+###desc 
+
+The generator class is a container holding a list of Itemstreams mapped to pfields, a starttime and optionally a nested list of Generators. Generators generate csound scores, or notelists for use in csounds scores.
+
+###initializing a generator
+
+todo 
+
+###nested generators
+
+todo 
+
+
+###post-processes
+
+todo
+ 
+
 #A simple example
 
 In Csound, notes have at a minimum an instrument, start time, and duration as their first 3 p-fields, but can have any number of additional parameters as required by an instrument. Here, we have p4 describing amplitude, and p5 describing frequency. 
