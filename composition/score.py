@@ -22,21 +22,6 @@ class Score:
         self.end_lines = []
         self.score_dur = 0
 
-    def reinit(self, rhythmstream, streams, note_limit = 16):
-        self.starttime = 0.0
-        self.curtime = self.starttime
-        self.streams = streams
-        self.instr = 1
-        self.rhythmstream = rhythmstream
-        self.durstream = rhythmstream
-        self.note_limit = note_limit
-        self.note_count = 0
-        self.time_limit = 0
-        self.gen_lines = []
-        self.notes = []
-        self.end_lines = []
-        self.score_dur = 0
-
     def generate_score(self, filename = None):
         self.note_count = 0
         self.curtime = self.starttime
@@ -61,27 +46,7 @@ class Score:
                 print(self.end_lines[x] + "\n")
             else:
                 f.writelines(self.end_lines[x] + "\n")
-                
-        #while self.note_count < self.note_limit:
-            #note = [self.instr, self.curtime, self.durstream.get_next_value()]
-            #note_is_chording = False
-            #for j in range(len(self.streams)):
-                #val = self.streams[j].get_next_value()
-                #if self.streams[j].is_chording:
-                    #note_is_chording = True
-                #note.append(val)
-            #if not note_is_chording:
-                #self.curtime = self.curtime + self.rhythmstream.get_next_value()
-                
-            #line = "i"
-            #for x in range(len(note)):
-                #line = line + (str(note[x]) + " ")
-            #if f == None:
-                #print(line)
-            #else:
-                #f.writelines(line + "\n")
-                    
-            #self.note_count = self.note_count + 1
+
         if f != None:
             f.close()
 

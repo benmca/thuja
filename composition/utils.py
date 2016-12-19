@@ -42,7 +42,7 @@ def rhythm_to_duration(rhythm_string, tempo):
     examples: w, q+w, e.+h+s, s..
     """
     ret = 0.0
-    dur_of_quarter = 60.0/tempo
+    dur_of_quarter = 60.0 / tempo
     #todo - triplet case
     multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
     val = 0.0

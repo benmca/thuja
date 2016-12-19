@@ -121,6 +121,9 @@ class Itemstream:
                 if isinstance(self.tempo, list):
                     ret = utils.rhythm_to_duration(self.values[self.index],
                                                    self.tempo[self.note_count % len(self.tempo)])
+                elif callable(self.tempo):
+                    ret = utils.rhythm_to_duration(self.values[self.index],
+                                                   self.tempo())
                 else:
                     ret = utils.rhythm_to_duration(self.values[self.index], self.tempo)
 
