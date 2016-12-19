@@ -51,7 +51,7 @@ g = Generator(
 
 g2 = copy.deepcopy(g)
 g2.streams[keys.rhythm] = Itemstream(['e'],'sequence', tempo=120, notetype=notetypes.rhythm)
-g2.streams[keys.frequency] = Itemstream(['c5','g3']*4+['f5','c3']*4+['c5','g3']*4+['g5','d3']*4,notetype=notetypes.pitch)
+g2.streams[keys.frequency] = Itemstream([['c5','d','e'],'g3']*4+['f5','c3']*4+[['c5','d','e'],'g3']*4+['g5','d3']*4,notetype=notetypes.pitch)
 g2.note_limit = 64
 g.add_generator(g2)
 g.generate_notes()

@@ -1,7 +1,7 @@
 pyComposition
 =============
 
-Python Module for algorithmic composition. The module specifically targets Csound, and generates Csound score (.sco) files for use in Csound pieces. 
+Python Module for algorithmic composition. The module specifically targets Csound, and generates Csound score (.sco) files for use in Csound pieces. Itemstreams were inspired by Rick Taube's Common Music 1.x.
 
 #Overview
 
