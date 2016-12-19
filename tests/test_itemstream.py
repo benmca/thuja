@@ -44,7 +44,7 @@ class TestItemstreams(unittest.TestCase):
             {keys.rhythm: "q", keys.index: .769, keys.amplitude: 1}
         ])
 
-    # TODO  fix these?  
+    # TODO  fix these?
     #
     # def test_basiccase(self):
     #     rhythms = Itemstream(['q'], 'sequence', tempo=[120, 60, 30])
