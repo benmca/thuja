@@ -44,7 +44,6 @@ def rhythm_to_duration(rhythm_string, tempo):
     dur_of_quarter = 60.0 / tempo
     #todo - triplet case
     multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
-    val = 0.0
 
     strings = rhythm_string.split('+')
 
@@ -52,14 +51,15 @@ def rhythm_to_duration(rhythm_string, tempo):
         val = 0.0
         if multipliers.has_key(s[0]):
             val = (dur_of_quarter * multipliers[s[0]])
-        if s.find("..") != -1:
-            val += val*.25
-        elif s.find('.') != -1:
-            val += val*.5
+            if s.find("..") != -1:
+                val = val*.25
+            elif s.find('.') != -1:
+                val = val*.5
         elif s.isdigit():
             whole = (dur_of_quarter * 4)
             mult = (1.0 / int(s))
-            val += whole*mult
+            val = whole*mult
+
         ret += val
     return ret
 

@@ -164,6 +164,10 @@ class Generator:
 
         for generator in self.generators:
             generator.start_time += self.start_time
+            if self.time_limit > 0 and generator.time_limit == 0:
+                generator.time_limit = self.time_limit
+            if self.note_limit > 0 and generator.note_limit == 0:
+                generator.note_limit = self.note_limit
             generator.generate_notes()
             self.notes.extend(generator.notes)
             if generator.score_dur > self.score_dur:
