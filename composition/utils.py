@@ -33,7 +33,6 @@ def pc_to_freq(pc, default_octave):
     return {"value" : steps_to_freq(pitchindex), "octave" : octave}
 
 
-
 def rhythm_to_duration(rhythm_string, tempo):
     """
     converts rhythm string to frequency
@@ -52,11 +51,15 @@ def rhythm_to_duration(rhythm_string, tempo):
     for s in strings:
         val = 0.0
         if multipliers.has_key(s[0]):
-                val = (dur_of_quarter * multipliers[s[0]])
+            val = (dur_of_quarter * multipliers[s[0]])
         if s.find("..") != -1:
-                val += val*.25
+            val += val*.25
         elif s.find('.') != -1:
-                val += val*.5
+            val += val*.5
+        elif s.isdigit():
+            whole = (dur_of_quarter * 4)
+            mult = (1.0 / int(s))
+            val += whole*mult
         ret += val
     return ret
 
