@@ -2,14 +2,29 @@ import utils
 import random
 
 class Notetypes:
-    """values for itemstream notetypes"""
+    """Values for initialization of notetype attribute of Itemstreams
+
+    Attributes:
+        rhythm: stream uses rhythm-string notation and stream tempo to generate numeric rhythm values.
+        pitch: stream uses pitch-class notation (ie: c4, cs, cf) to generate numeric frequency values.
+        number: stream uses numbers to generate numeric rhythm values.
+    """
+
     def __init__(self):
         self.rhythm = 'rhythm'
         self.pitch = 'pitch'
         self.number = 'number'
 
 class Streammodes:
-    """values for itemstream modes"""
+    """Values for initialization of streammode attribute of Itemstreams
+
+    Attributes:
+        sequence: stream will generate values in sequence.
+        random: for each call to get_next_value(), stream will return a random item from values.
+        heap: for each call to get_next_value(), stream will return a random item from values. No value is
+            repeated until all others have been returned.
+    """
+
     def __init__(self):
         self.sequence = 'sequence'
         self.heap = 'heap'
@@ -22,17 +37,28 @@ streammodes = Streammodes()
 notetypes = Notetypes()
 
 class Itemstream:
-    """"""
+    """A container for streams of musical data.
 
-    def __init__(self, initstream=None,
+    Attributes:
+        values: (:obj:`list` of :obj:`str`):
+        streammode (str): See Streammode doc. Default is streammodes.sequence
+        notetype (str): See Notetype doc. Default is notetypes.number
+        tempo=120 (int): tempo value used in streams generating rhythms
+        tag (str, optional): optional tag for identifying the stream
+        mapping_keys (:obj:`dict` of :obj:`str`):
+        mapping_lists=None
+    """
+
+    def __init__(self, values=None,
                  streammode=streammodes.sequence,
                  notetype=notetypes.number,
                  tempo=120,
                  tag='',
                  mapping_keys=None,
                  mapping_lists=None):
+
         """Constructor"""
-        self.values = initstream
+        self.values = values
         self.index = 0
         self.streammode = streammode
         self.notetype = notetype

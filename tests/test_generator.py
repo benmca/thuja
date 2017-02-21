@@ -8,6 +8,8 @@ import composition.utils as utils
 from collections import OrderedDict
 import numpy as np
 
+rhythm = Itemstream('w h q e s e. w+q'.split())
+rhythm.notetype = 'rhythm'
 
 class TestGenerators(unittest.TestCase):
 
