@@ -1,8 +1,8 @@
 import random
-from composition.itemstream import Itemstream
+from thuja.itemstream import Itemstream
 import audiolazy
 
-from composition import itemstream
+from thuja import itemstream
 
 random.seed()
 class PitchQueue:

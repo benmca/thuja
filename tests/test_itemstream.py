@@ -1,7 +1,7 @@
 import unittest
-from context import composition
-from composition.itemstream import Itemstream
-from composition.generator import keys
+from context import thuja
+from thuja.itemstream import Itemstream
+from thuja.generator import keys
 import numpy as np
 
 class TestItemstreams(unittest.TestCase):

@@ -1,9 +1,9 @@
 import unittest
-from context import composition
-from composition.itemstream import Itemstream
-from composition.generator import Generator
-from composition.generator import keys
-import composition.utils as utils
+from context import thuja
+from thuja.itemstream import Itemstream
+from thuja.generator import Generator
+from thuja.generator import keys
+import thuja.utils as utils
 
 from collections import OrderedDict
 import numpy as np
