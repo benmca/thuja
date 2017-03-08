@@ -63,3 +63,6 @@ def rhythm_to_duration(rhythm_string, tempo):
         ret += val
     return ret
 
+def quarter_duration_to_tempo(dur):
+    return 60 * (1/dur)
+
