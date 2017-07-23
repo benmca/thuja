@@ -133,7 +133,7 @@ class Generator:
 
             for item in self.post_processes:
                 if callable(item):
-                    item(note)
+                    item(note, self.context)
 
             if not note_is_chording:
                 if rhythm is not None:

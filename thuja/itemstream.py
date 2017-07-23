@@ -92,7 +92,6 @@ class Itemstream:
                     item[key] = mapping_lists[keydx][i % len(mapping_lists[keydx])]
                 self.values.append(item)
 
-
     def get_next_value(self):
         ret = None
         # global myScore

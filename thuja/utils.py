@@ -34,6 +34,7 @@ def pc_to_freq(pc, default_octave):
 
 
 def rhythm_to_duration(rhythm_string, tempo):
+    print 'rtd: ' + rhythm_string
     """
     converts rhythm string to frequency
     rhythm string spec - [w|h|q|e|s][.][.]
@@ -44,6 +45,7 @@ def rhythm_to_duration(rhythm_string, tempo):
     dur_of_quarter = 60.0 / tempo
     #todo - triplet case
     multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
+
 
     strings = rhythm_string.split('+')
 

@@ -172,7 +172,7 @@ class TestGenerators(unittest.TestCase):
         self.assertTrue(len(score_string.split('\n')) == 22)
 
     def test_basiccase(self):
-        rhythms = Itemstream(['q'], 'sequence', tempo=60)
+        rhythms = Itemstream(['q','32'], 'sequence', tempo=60)
         rhythms.notetype = 'rhythm'
         amps = Itemstream([1])
         pitches = Itemstream(sum([
