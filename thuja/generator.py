@@ -133,7 +133,9 @@ class Generator:
 
             for item in self.post_processes:
                 if callable(item):
-                    item(note, self.context)
+                    # 9.2.2017 - I don't see why we were passing context back, when caller would have a ref already
+                    # item(note, self.context)
+                    item(note)
 
             if not note_is_chording:
                 if rhythm is not None:

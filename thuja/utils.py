@@ -30,11 +30,41 @@ def pc_to_freq(pc, default_octave):
             if pc[1] == 'f':
                     pitchindex -= 1
 
+    print 'pc_to_freq: pitch index: ' + str(pitchindex)
+
     return {"value" : steps_to_freq(pitchindex), "octave" : octave}
 
 
+def pc_to_midi_note(pc, default_octave):
+    """
+    converts pitch class name to midi note
+    pitch class spec - [note name][s|f|n][octave]
+    examples: b4, cs5, af8, an3
+    """
+    if pc == 'r':
+            return {"value" : 0, "octave" : 0}
+
+    octave = default_octave
+
+    pitchindex = int(pc_spec.index(pc[0]))
+
+    if pc[len(pc)-1].isdigit():
+            octave = int(pc[len(pc)-1])
+
+    pitchindex += 12*octave
+
+    if len(pc) >= 2:
+            if pc[1] == 's':
+                    pitchindex += 1
+            if pc[1] == 'f':
+                    pitchindex -= 1
+
+
+    return {"value" : pitchindex}
+
+
 def rhythm_to_duration(rhythm_string, tempo):
-    print 'rtd: ' + rhythm_string
+    #print 'rtd: ' + rhythm_string
     """
     converts rhythm string to frequency
     rhythm string spec - [w|h|q|e|s][.][.]
