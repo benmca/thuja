@@ -1,10 +1,24 @@
+import math
 
-dev = pow(2, (1.0/12.0))
-pc_spec = list("axbcxdxefxgx")
+pc_spec = list("cxdxefxgxaxb")
 
-def steps_to_freq(steps):
-    return pow(dev,steps)*27.5
 
+# Hertz = 440.0 * pow(2.0, (midi note - 69)/12);
+#
+# midi note = log(Hertz/440.0)/log(2) * 12 + 69;
+
+def freq_to_midi_note(freq):
+    val = math.log(freq/440.0)/math.log(2.0) * 12.0 + 69.0
+    ret = 0
+    if val > 0 and (val - int(val) > .5):
+        ret = int(math.ceil(val))
+    elif val > 0:
+        ret = int(math.floor(val))
+    return ret
+
+def midinote_to_freq(midinote):
+    ret = 440.0 * math.pow(2.0, (midinote - 69.0)/12.0)
+    return ret
 
 def pc_to_freq(pc, default_octave):
     """
@@ -17,22 +31,47 @@ def pc_to_freq(pc, default_octave):
 
     octave = default_octave
 
-    pitchindex = int(pc_spec.index(pc[0]))
+    midinote = int(pc_spec.index(pc[0]))
 
     if pc[len(pc)-1].isdigit():
             octave = int(pc[len(pc)-1])
 
-    pitchindex += 12*octave
+    midinote += 12*(octave-1)
 
     if len(pc) >= 2:
             if pc[1] == 's':
-                    pitchindex += 1
+                    midinote += 1
             if pc[1] == 'f':
-                    pitchindex -= 1
+                    midinote -= 1
 
-    print 'pc_to_freq: pitch index: ' + str(pitchindex)
+    # print 'pc_to_freq: pitch index: ' + str(pitchindex)
 
-    return {"value" : steps_to_freq(pitchindex), "octave" : octave}
+    return {"value" : midinote_to_freq(midinote), "octave" : octave}
+
+def freq_to_pc(freq, include_octave):
+    """
+    converts frequency to pitch class name
+    pitch class spec - [note name][s|f|n][octave]
+    examples: b4, cs5, af8, an3
+    include_octave adds octave number to ret'd string
+    """
+
+
+    midinote = freq_to_midi_note(freq)
+    octave = int((midinote) / 12) + 1
+    pcid = pc_spec[(midinote)%12]
+
+    pc = ''
+    if pcid == 'x':
+        pc = pc_spec[((midinote)%12)-1] + 's'
+    else:
+        pc = pcid
+
+    if include_octave:
+        pc += str(octave)
+
+    print 'freq_to_pc: pc: ' + pc
+    return pc
 
 
 def pc_to_midi_note(pc, default_octave):
