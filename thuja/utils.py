@@ -55,9 +55,15 @@ def freq_to_pc(freq, include_octave):
     examples: b4, cs5, af8, an3
     include_octave adds octave number to ret'd string
     """
+    return midi_note_to_pc(freq_to_midi_note(freq), include_octave)
 
 
-    midinote = freq_to_midi_note(freq)
+def midi_note_to_pc(midinote, include_octave=True):
+    """
+    converts midi note to pitch class name
+    pitch class spec - [note name][s|f|n][octave]
+    examples: b4, cs5, af8, an3
+    """
     octave = int((midinote) / 12) + 1
     pcid = pc_spec[(midinote)%12]
 
@@ -70,9 +76,7 @@ def freq_to_pc(freq, include_octave):
     if include_octave:
         pc += str(octave)
 
-    print 'freq_to_pc: pc: ' + pc
     return pc
-
 
 def pc_to_midi_note(pc, default_octave):
     """

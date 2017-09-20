@@ -11,6 +11,13 @@ import numpy as np
 
 class TestUtils(unittest.TestCase):
 
+    def test_midinote_to_pc(self):
+        self.assertTrue(utils.midi_note_to_pc(1) == 'cs1')
+        self.assertTrue(utils.midi_note_to_pc(1, False) == 'cs')
+        self.assertTrue(utils.midi_note_to_pc(0) == 'c1')
+        self.assertTrue(utils.midi_note_to_pc(36, False) == 'c')
+        self.assertTrue(utils.midi_note_to_pc(36) == 'c4')
+
     def test_freq_to_midinote(self):
         self.assertTrue(utils.freq_to_midi_note(73.4161919794) == 38)
         self.assertTrue(utils.freq_to_midi_note(8.1757989156) == 0)
