@@ -1,6 +1,6 @@
-from itemstream import Itemstream
-from new_event import NewEvent
-import utils
+from thuja.itemstream import Itemstream
+from thuja.new_event import NewEvent
+from thuja import utils
 
 
 class StreamKey:

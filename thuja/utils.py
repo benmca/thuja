@@ -1,4 +1,5 @@
 import math
+from collections import OrderedDict
 
 pc_spec = list("cxdxefxgxaxb")
 
@@ -104,6 +105,77 @@ def pc_to_midi_note(pc, default_octave):
 
 
     return {"value" : pitchindex}
+
+
+def add_rhythm(rhythm_string, modifier):
+    return modify_rhythm(rhythm_string, modifier, True)
+
+
+def subtract_rhythm(rhythm_string, modifier):
+    return modify_rhythm(rhythm_string, modifier, False)
+
+def modify_rhythm(rhythm_string, modifier, add):
+    # multipliers = OrderedDict{'w':4,'h':2,'q':1,'e':.5,'s':.25}
+    # strings = rhythm_string.split('+')
+    return
+    # for s in strings:
+    #     val = 0.0
+    #     if multipliers.has_key(s[0]):
+    #         val = (dur_of_quarter * multipliers[s[0]])
+    #         if s.find("..") != -1:
+    #             val = val*.25
+    #         elif s.find('.') != -1:
+    #             val = val*.5
+    #     elif s.isdigit():
+    #         whole = (dur_of_quarter * 4)
+    #         mult = (1.0 / int(s))
+    #         val = whole*mult
+    #
+    #     ret += val
+
+def val_to_rhythm_string(val):
+    mults_list = {4: 'w', 2: 'h', 1: 'q', .5: 'e', .25: 's'}
+    # multipliers = OrderedDict(sorted(mults_list))
+    ret = ''
+    for key in mults_list.keys():
+        if int(val / key) > 2:
+            ret += mults_list[key]
+            val -= key
+        elif int(val / key) > 1:
+            #special case - this could be a dotted case
+            ret += mults_list[key]
+            remainder = (val / key) - int(val/key)
+            if val / remainder > 4:
+                val -= remainder
+                ret += '..'
+            if val / remainder > 2:
+                val -= remainder
+                ret += '.'
+            val -= key
+        if val > 0:
+            ret += '+'
+
+    # if val > 0:
+
+    return ret
+
+def rhythm_string_to_val(rhythm_string):
+    multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
+    strings = rhythm_string.split('+')
+    val = 0.0
+    for s in strings:
+        if multipliers.has_key(s[0]):
+            val += multipliers[s[0]]
+            if s.find("..") != -1:
+                val += val*.25
+            elif s.find('.') != -1:
+                val += val*.5
+        elif s.isdigit():
+            whole = 4
+            mult = (1.0 / int(s))
+            val += whole*mult
+
+    return val
 
 
 def rhythm_to_duration(rhythm_string, tempo):

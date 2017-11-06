@@ -1,5 +1,5 @@
 import unittest
-from context import thuja
+from tests.context import thuja
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
 from thuja.generator import keys

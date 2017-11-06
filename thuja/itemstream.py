@@ -1,4 +1,4 @@
-import utils
+from thuja import utils
 import random
 
 class Notetypes:
