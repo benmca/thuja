@@ -164,7 +164,7 @@ def rhythm_string_to_val(rhythm_string):
     strings = rhythm_string.split('+')
     val = 0.0
     for s in strings:
-        if multipliers.has_key(s[0]):
+        if s[0] in multipliers.keys():
             val += multipliers[s[0]]
             if s.find("..") != -1:
                 val += val*.25
@@ -196,7 +196,7 @@ def rhythm_to_duration(rhythm_string, tempo):
 
     for s in strings:
         val = 0.0
-        if multipliers.has_key(s[0]):
+        if s[0] in multipliers.keys():
             val = (dur_of_quarter * multipliers[s[0]])
             if s.find("..") != -1:
                 val = val*.25

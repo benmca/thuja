@@ -10,24 +10,24 @@ import numpy as np
 
 
 class TestUtils(unittest.TestCase):
-    def test_rhythms(self):
-        # self.assertTrue(utils.add_rhythm('w', 's') == 'w+s')
-        # self.assertTrue(utils.add_rhythm('h', 's') == 'h+s')
-        # self.assertTrue(utils.add_rhythm('q', 's') == 'q+s')
-        # self.assertTrue(utils.add_rhythm('e', 's') == 'e.')
-        # self.assertTrue(utils.add_rhythm('s', 's') == 's')
-        self.assertTrue(utils.rhythm_string_to_val('s') == .25)
-        self.assertTrue(utils.rhythm_string_to_val('s+s') == .5)
-        self.assertTrue(utils.rhythm_string_to_val('s+e') == .75)
-        self.assertTrue(utils.rhythm_string_to_val('s.') == .375)
-        self.assertTrue(utils.rhythm_string_to_val('s+e+16') == 1)
-        self.assertTrue(utils.rhythm_string_to_val('12+12+12') == 1)
-        self.assertTrue(utils.val_to_rhythm_string(4) == 'w')
-        self.assertTrue(utils.val_to_rhythm_string(3) == 'h.')
-        self.assertTrue(utils.val_to_rhythm_string(2) == 'h')
-        self.assertTrue(utils.val_to_rhythm_string(1.5) == 'q.')
-        self.assertTrue(utils.val_to_rhythm_string(1.25) == 'q..')
-        self.assertTrue(utils.val_to_rhythm_string(1.75) == 'q+e.')
+    # def test_rhythms(self):
+    #     # self.assertTrue(utils.add_rhythm('w', 's') == 'w+s')
+    #     # self.assertTrue(utils.add_rhythm('h', 's') == 'h+s')
+    #     # self.assertTrue(utils.add_rhythm('q', 's') == 'q+s')
+    #     # self.assertTrue(utils.add_rhythm('e', 's') == 'e.')
+    #     # self.assertTrue(utils.add_rhythm('s', 's') == 's')
+    #     self.assertTrue(utils.rhythm_string_to_val('s') == .25)
+    #     self.assertTrue(utils.rhythm_string_to_val('s+s') == .5)
+    #     self.assertTrue(utils.rhythm_string_to_val('s+e') == .75)
+    #     self.assertTrue(utils.rhythm_string_to_val('s.') == .375)
+    #     self.assertTrue(utils.rhythm_string_to_val('s+e+16') == 1)
+    #     self.assertTrue(utils.rhythm_string_to_val('12+12+12') == 1)
+    #     self.assertTrue(utils.val_to_rhythm_string(4) == 'w')
+    #     self.assertTrue(utils.val_to_rhythm_string(3) == 'h.')
+    #     self.assertTrue(utils.val_to_rhythm_string(2) == 'h')
+    #     self.assertTrue(utils.val_to_rhythm_string(1.5) == 'q.')
+    #     self.assertTrue(utils.val_to_rhythm_string(1.25) == 'q..')
+    #     self.assertTrue(utils.val_to_rhythm_string(1.75) == 'q+e.')
 
     def test_midinote_to_pc(self):
         self.assertTrue(utils.midi_note_to_pc(1) == 'cs1')

@@ -1,5 +1,4 @@
 import unittest
-from tests.context import thuja
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
 from thuja.generator import keys
@@ -203,7 +202,7 @@ class TestGenerators(unittest.TestCase):
 
         score = g.generate_score_string()
         self.assertTrue(score is not None)
-        print len(score.split('\n'))
+        print(len(score.split('\n')))
         self.assertTrue(len(score.split('\n')) == 22)
 
     def test_tempo(self):

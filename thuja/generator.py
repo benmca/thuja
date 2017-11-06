@@ -49,7 +49,7 @@ class Generator:
 
         self.pfields = pfields
         if self.pfields is None:
-            self.pfields = self.streams.keys()
+            self.pfields = list(self.streams.keys())
             self.pfields.insert(1, keys.start_time)
 
         # a place to put stuff to refer to in callables - not sure best way forward here
@@ -104,7 +104,7 @@ class Generator:
             # todo - validate we're ok to roll: we have at least an instr and rhythm
             note_is_chording = False
             rhythm = None
-            for key in self.streams.iterkeys():
+            for key in self.streams.keys():
                 if key is keys.rhythm:
                     continue
                 # this could be a literal or ItemStream
@@ -116,7 +116,7 @@ class Generator:
                     # support mapping stream
                     # i.e.  [{"rhy": "h", "indx": 5.54}, {"rhy": "h", "indx": 6.67}, {"rhy": "h", "indx": 8.0}]
                     if isinstance(value, dict):
-                        for item in value.iterkeys():
+                        for item in value.keys():
                             if item == keys.rhythm:
                                 rhythm = utils.rhythm_to_duration(value[item], self.streams[key].tempo)
                             elif item == "freq":
@@ -149,7 +149,7 @@ class Generator:
                     note.rhythm = rhythm
 
             # after setting primitives and ItemStream-driven values, evaluate functions
-            for key in self.streams.iterkeys():
+            for key in self.streams.keys():
                 # this could be a literal or ItemStream
                 if callable(self.streams[key]):
                     value = self.streams[key](note)
