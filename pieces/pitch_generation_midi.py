@@ -10,7 +10,6 @@ import csnd6
 
 import random
 
-
 rhythms = Itemstream(['e.','e.','e','q.','e','q.','e','s'],
     streammode=streammodes.sequence,
     tempo=120,
@@ -33,10 +32,11 @@ g = Generator(
         (keys.frequency, pitches),
         (keys.pan, 45),
         (keys.distance, 10),
-        (keys.percent, .1)
+        (keys.percent, .1),
+        ('chan', Itemstream([1, 2, 3]))
     ]),
     pfields=None,
-    note_limit=(len(pitches.values)*16),
+    note_limit=(len(pitches.values)*160),
     gen_lines = [';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
@@ -46,7 +46,7 @@ g = Generator(
 )
 
 
-def post_processs(note):
+def vary_pitches(note):
     if random.random() > .5:
         i = random.randint(0, len(g.streams[keys.frequency].values)-1)
         val = g.streams[keys.frequency].values[i]
@@ -68,42 +68,50 @@ def post_processs(note):
         g.streams[keys.frequency].values[i] = newpc
 
 
-def post_processs_rhythm(note):
-    # if random.random() > .5:
-    i = random.randint(0, len(g.streams[keys.frequency].values)-1)
-    val = g.streams[keys.frequency].values[i]
-    r = g.streams[keys.rhythm].values[i]
+def vary_rhythms(note):
+    if random.random() > .5:
+        i = random.randint(0, len(g.streams[keys.frequency].values)-1)
+        val = g.streams[keys.frequency].values[i]
+        # freq = utils.pc_to_freq(val, g.streams[keys.frequency].current_octave)['value']
 
-    # if random.random() > .6:
-    #     if random.random() > .5:
-    #         if random.random() > .5:
-    #             midinote += 2
-    #         else:
-    #             midinote += 1
-    #     else:
-    #         if random.random() > .5:
-    #             midinote -= 2
-    #         else:
-    #             midinote -= 1
-    # newfreq = utils.midinote_to_freq(midinote)
-    # newpc = utils.freq_to_pc(newfreq, True)
-    # g.streams[keys.frequency].values[i] = newpc
-    pass
+        midinote = utils.freq_to_midi_note(freq)
+        if random.random() > .6:
+            if random.random() > .5:
+                if random.random() > .5:
+                    midinote += 2
+                else:
+                    midinote += 1
+            else:
+                if random.random() > .5:
+                    midinote -= 2
+                else:
+                    midinote -= 1
+        newfreq = utils.midinote_to_freq(midinote)
+        newpc = utils.freq_to_pc(newfreq, True)
+        g.streams[keys.frequency].values[i] = newpc
 
 
-g.post_processes = [post_processs, post_processs_rhythm]
+
+
+g.post_processes = [vary_pitches, vary_rhythms]
 
 g.generate_notes()
 
 g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 
-with open ("sine.orc", "r") as f:
+with open ("/Users/benmca/src/csound/instruments/sine+midiout+channelparam.orc", "r") as f:
     orc_string=f.read()
 score_string = g.generate_score_string()
+g.generate_score('midi.sco')
 cs = csnd6.Csound()
 cs.CompileOrc(orc_string)
 cs.ReadScore(score_string)
 cs.SetOption('-odac')
+cs.SetOption('-Q0')
+cs.SetOption('-b64')
+cs.SetOption('-B64')
+cs.SetOption("--m-amps=0")
 cs.Start()
 cs.Perform()
 cs.Stop()
+

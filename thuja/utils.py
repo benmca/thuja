@@ -114,10 +114,9 @@ def add_rhythm(rhythm_string, modifier):
 def subtract_rhythm(rhythm_string, modifier):
     return modify_rhythm(rhythm_string, modifier, False)
 
-def modify_rhythm(rhythm_string, modifier, add):
-    # multipliers = OrderedDict{'w':4,'h':2,'q':1,'e':.5,'s':.25}
+    #
+    # multipliers = OrderedDict({'w':4,'h':2,'q':1,'e':.5,'s':.25})
     # strings = rhythm_string.split('+')
-    return
     # for s in strings:
     #     val = 0.0
     #     if multipliers.has_key(s[0]):
@@ -133,26 +132,40 @@ def modify_rhythm(rhythm_string, modifier, add):
     #
     #     ret += val
 
+
+def modify_rhythm(rhythm_string, modifier, add):
+    val1 = rhythm_string_to_val(rhythm_string)
+    val2 = rhythm_string_to_val(modifier)
+    result = 0.0
+    if add:
+        result = val1 + val2
+    elif val1 - val2 > 0:
+        result = val1 - val2
+    return val_to_rhythm_string(result)
+
 def val_to_rhythm_string(val):
-    mults_list = {4: 'w', 2: 'h', 1: 'q', .5: 'e', .25: 's'}
-    # multipliers = OrderedDict(sorted(mults_list))
+    multipliers = {4: 'w', 2: 'h', 1: 'q', .5: 'e', .25: 's'}
+    mults_list = OrderedDict(sorted(multipliers.items(), key = lambda t : t[0], reverse=True))
     ret = ''
     for key in mults_list.keys():
-        if int(val / key) > 2:
+        if val == 0:
+            break
+        if int(val / key) >= 2:
             ret += mults_list[key]
             val -= key
-        elif int(val / key) > 1:
+        elif int(val / key) >= 1:
             #special case - this could be a dotted case
             ret += mults_list[key]
-            remainder = (val / key) - int(val/key)
-            if val / remainder > 4:
+            # remainder = (val / key) - int(val/key)
+            remainder = val - key
+            if remainder > 0 and key / remainder == 4:
                 val -= remainder
                 ret += '..'
-            if val / remainder > 2:
+            if remainder > 0 and key / remainder == 2:
                 val -= remainder
                 ret += '.'
             val -= key
-        if val > 0:
+        if val > 0 and len(ret) > 0 and ret[len(ret)-1] != '+':
             ret += '+'
 
     # if val > 0:
@@ -209,6 +222,9 @@ def rhythm_to_duration(rhythm_string, tempo):
 
         ret += val
     return ret
+
+def dur_of_quarter(tempo):
+    return 60.0 / tempo
 
 def quarter_duration_to_tempo(dur):
     return 60 * (1/dur)

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import unittest
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
