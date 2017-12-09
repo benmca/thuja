@@ -11,14 +11,14 @@ import csnd6
 import random
 
 
-rhythms = Itemstream(['e.','e.','e','q.','e','q.','e','s'],
+rhythms = Itemstream(['s']*8,
     streammode=streammodes.sequence,
     tempo=120,
     notetype=notetypes.rhythm)
 amps = Itemstream([1])
 
 pitches = Itemstream(sum([
-    ['c7','d','e','f','g','a','b','c8'],
+    ['c5']*8,
     ],[]),
     streammode=streammodes.sequence,
     notetype=notetypes.pitch
@@ -36,7 +36,7 @@ g = Generator(
         (keys.percent, .1)
     ]),
     pfields=None,
-    note_limit=(len(pitches.values)*16),
+    note_limit=(len(pitches.values)*64),
     gen_lines = [';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
@@ -55,14 +55,14 @@ def post_processs(note):
         if random.random() > .6:
             if random.random() > .5:
                 if random.random() > .5:
-                    midinote += 2
+                    midinote += 3
                 else:
-                    midinote += 1
+                    midinote += 4
             else:
                 if random.random() > .5:
-                    midinote -= 2
+                    midinote -= 3
                 else:
-                    midinote -= 1
+                    midinote -= 4
         newfreq = utils.midinote_to_freq(midinote)
         newpc = utils.freq_to_pc(newfreq, True)
         g.streams[keys.frequency].values[i] = newpc
@@ -70,21 +70,41 @@ def post_processs(note):
 
 def post_processs_rhythm(note):
     # if random.random() > .5:
-    i = random.randint(0, len(g.streams[keys.frequency].values)-1)
-    val = g.streams[keys.frequency].values[i]
+    i = random.randint(0, len(g.streams[keys.rhythm].values)-1)
     r = g.streams[keys.rhythm].values[i]
+    newrhy = r
+    diff = ''
+    add = True
+    if random.random() > .9:
+        if random.random() > .5:
+            if random.random() > .9:
+                newrhy = utils.add_rhythm(r, 's')
+                diff = 's'
+            elif utils.rhythm_string_to_val(r) > utils.rhythm_string_to_val('s'):
+                newrhy = utils.subtract_rhythm(r, 's')
+                diff = 's'
+                add = False
+        else:
+            if random.random() > .9:
+                newrhy = utils.add_rhythm(r, 'e')
+                diff = 'e'
+            elif utils.rhythm_string_to_val(r) > utils.rhythm_string_to_val('e'):
+                newrhy = utils.subtract_rhythm(r, 'e')
+                diff = 'e'
+                add = False
 
-    # if random.random() > .6:
-    #     if random.random() > .5:
-    #         if random.random() > .5:
-    #             midinote += 2
-    #         else:
-    #             midinote += 1
-    #     else:
-    #         if random.random() > .5:
-    #             midinote -= 2
-    #         else:
-    #             midinote -= 1
+    # displace the rest of the stream (if possible) by the new rhythm diff
+    if r != newrhy:
+        g.streams[keys.rhythm].values[i] = newrhy
+        if i + 1 < len(g.streams[keys.rhythm].values):
+            for j in range(i + 1, len(g.streams[keys.rhythm].values)):
+                if add:
+                    g.streams[keys.rhythm].values[j] = utils.add_rhythm(g.streams[keys.rhythm].values[j], diff)
+                elif utils.rhythm_string_to_val(g.streams[keys.rhythm].values[j]) > utils.rhythm_string_to_val(diff):
+                    g.streams[keys.rhythm].values[j] = utils.subtract_rhythm(g.streams[keys.rhythm].values[j], diff)
+
+
+
     # newfreq = utils.midinote_to_freq(midinote)
     # newpc = utils.freq_to_pc(newfreq, True)
     # g.streams[keys.frequency].values[i] = newpc
