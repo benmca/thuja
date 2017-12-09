@@ -36,11 +36,11 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.val_to_rhythm_string(1.75) == 'q+e.')
 
     def test_midinote_to_pc(self):
-        self.assertTrue(utils.midi_note_to_pc(1) == 'cs1')
-        self.assertTrue(utils.midi_note_to_pc(1, False) == 'cs')
-        self.assertTrue(utils.midi_note_to_pc(0) == 'c1')
-        self.assertTrue(utils.midi_note_to_pc(36, False) == 'c')
-        self.assertTrue(utils.midi_note_to_pc(36) == 'c4')
+        self.assertTrue(utils.midi_note_to_pc(25) == 'cs1')
+        self.assertTrue(utils.midi_note_to_pc(25, False) == 'cs')
+        self.assertTrue(utils.midi_note_to_pc(24) == 'c1')
+        self.assertTrue(utils.midi_note_to_pc(60, False) == 'c')
+        self.assertTrue(utils.midi_note_to_pc(60) == 'c4')
 
     def test_freq_to_midinote(self):
         self.assertTrue(utils.freq_to_midi_note(73.4161919794) == 38)
@@ -61,12 +61,12 @@ class TestUtils(unittest.TestCase):
 
     def test_freq_to_pc(self):
         self.assertTrue(utils.freq_to_pc(8.66, False) == 'cs')
-        self.assertTrue(utils.freq_to_pc(110, True) == 'a4')
+        self.assertTrue(utils.freq_to_pc(440, True) == 'a4')
 
     def test_pc_to_freq(self):
-        self.assertTrue(round(utils.pc_to_freq('a4',4)['value'] ,2) == 110.0)
-        self.assertTrue(round(utils.pc_to_freq('a4',1)['value'] ,2) == 110.0)
-        self.assertTrue(round(utils.pc_to_freq('a6',1)['value'] ,2) == 440.0)
+        self.assertTrue(round(utils.pc_to_freq('a4', 4)['value'], 2) == 440.0)
+        self.assertTrue(round(utils.pc_to_freq('a4', 1)['value'], 2) == 440.0)
+        self.assertTrue(round(utils.pc_to_freq('a6', 1)['value'], 2) == 1760.0)
 
 if __name__ == '__main__':
     unittest.main()

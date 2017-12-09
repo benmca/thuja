@@ -37,7 +37,7 @@ def pc_to_freq(pc, default_octave):
     if pc[len(pc)-1].isdigit():
             octave = int(pc[len(pc)-1])
 
-    midinote += 12*(octave-1)
+    midinote += 12*(octave+1)
 
     if len(pc) >= 2:
             if pc[1] == 's':
@@ -65,7 +65,7 @@ def midi_note_to_pc(midinote, include_octave=True):
     pitch class spec - [note name][s|f|n][octave]
     examples: b4, cs5, af8, an3
     """
-    octave = int((midinote) / 12) + 1
+    octave = int((midinote) / 12) - 1
     pcid = pc_spec[(midinote)%12]
 
     pc = ''

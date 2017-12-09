@@ -11,6 +11,7 @@ import numpy as np
 rhythm = Itemstream('w h q e s e. w+q'.split())
 rhythm.notetype = 'rhythm'
 
+
 class TestGenerators(unittest.TestCase):
 
     def test_callables(self):

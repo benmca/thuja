@@ -2,7 +2,6 @@ import unittest
 from thuja.itemstream import Itemstream
 from thuja.generator import keys
 import numpy as np
-
 class TestItemstreams(unittest.TestCase):
     def test_mappings(self):
         rhythms = 'h h w h h h'.split()
@@ -163,6 +162,7 @@ class TestItemstreams(unittest.TestCase):
     #     score = global_score.generate_score_string()
     #     self.assertTrue(score is not None)
     #     self.assertTrue(len(score.split('\n')) == 54)
+
 
 
 if __name__ == '__main__':

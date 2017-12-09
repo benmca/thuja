@@ -61,7 +61,9 @@ g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 with open ("sine.orc", "r") as f:
     orc_string=f.read()
 score_string = g.generate_score_string()
+print (score_string)
 cs = csnd6.Csound()
+
 cs.CompileOrc(orc_string)
 cs.ReadScore(score_string)
 cs.SetOption('-odac')
