@@ -75,6 +75,8 @@ class Itemstream:
 
         self.current_value = None
 
+        assert not isinstance(values, str)
+
         if mapping_keys is not None and mapping_lists is not None:
             self.values = []
             map_length = 0

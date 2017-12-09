@@ -23,6 +23,7 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.subtract_rhythm('e', 's') == 's')
         self.assertTrue(utils.subtract_rhythm('s', 's') == '')
         self.assertTrue(utils.rhythm_string_to_val('s') == .25)
+        self.assertTrue(round(utils.rhythm_string_to_val('12'), 2) == 0.33)
         self.assertTrue(utils.rhythm_string_to_val('s+s') == .5)
         self.assertTrue(utils.rhythm_string_to_val('s+e') == .75)
         self.assertTrue(utils.rhythm_string_to_val('s.') == .375)
