@@ -36,7 +36,7 @@ g = Generator(
         (keys.percent, .1)
     ]),
     pfields=None,
-    note_limit=(len(pitches.values)*64),
+    note_limit=(len(pitches.values)*1024),
     gen_lines = [';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
@@ -123,7 +123,7 @@ score_string = g.generate_score_string()
 cs = csnd6.Csound()
 cs.CompileOrc(orc_string)
 cs.ReadScore(score_string)
-cs.SetOption('-odac')
+cs.SetOption('-odac4')
 cs.Start()
 cs.Perform()
 cs.Stop()
