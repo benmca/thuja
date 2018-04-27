@@ -17,9 +17,7 @@ rhythms = Itemstream(['s']*8,
     notetype=notetypes.rhythm)
 amps = Itemstream([1])
 
-pitches = Itemstream(sum([
-    ['c5']*8,
-    ],[]),
+pitches = Itemstream('c5 g f g r c4 g f g r'.split(),
     streammode=streammodes.sequence,
     notetype=notetypes.pitch
 )
@@ -94,14 +92,18 @@ def post_processs_rhythm(note):
                 add = False
 
     # displace the rest of the stream (if possible) by the new rhythm diff
-    if r != newrhy:
+    if r != newrhy and r != '':
         g.streams[keys.rhythm].values[i] = newrhy
         if i + 1 < len(g.streams[keys.rhythm].values):
             for j in range(i + 1, len(g.streams[keys.rhythm].values)):
                 if add:
-                    g.streams[keys.rhythm].values[j] = utils.add_rhythm(g.streams[keys.rhythm].values[j], diff)
+                    item = utils.add_rhythm(g.streams[keys.rhythm].values[j], diff)
+                    if item != '':
+                        g.streams[keys.rhythm].values[j] = item
                 elif utils.rhythm_string_to_val(g.streams[keys.rhythm].values[j]) > utils.rhythm_string_to_val(diff):
-                    g.streams[keys.rhythm].values[j] = utils.subtract_rhythm(g.streams[keys.rhythm].values[j], diff)
+                    item = utils.subtract_rhythm(g.streams[keys.rhythm].values[j], diff)
+                    if item != '':
+                        g.streams[keys.rhythm].values[j] = item
 
 
 
@@ -123,7 +125,7 @@ score_string = g.generate_score_string()
 cs = csnd6.Csound()
 cs.CompileOrc(orc_string)
 cs.ReadScore(score_string)
-cs.SetOption('-odac4')
+cs.SetOption('-odac0')
 cs.Start()
 cs.Perform()
 cs.Stop()

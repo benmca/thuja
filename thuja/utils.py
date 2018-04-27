@@ -9,6 +9,8 @@ pc_spec = list("cxdxefxgxaxb")
 # midi note = log(Hertz/440.0)/log(2) * 12 + 69;
 
 def freq_to_midi_note(freq):
+    if freq == 0:
+        return 0
     val = math.log(freq/440.0)/math.log(2.0) * 12.0 + 69.0
     ret = 0
     if val > 0 and (val - int(val) > .5):
@@ -18,6 +20,8 @@ def freq_to_midi_note(freq):
     return ret
 
 def midinote_to_freq(midinote):
+    if midinote == 0:
+        return 0.0
     ret = 440.0 * math.pow(2.0, (midinote - 69.0)/12.0)
     return ret
 
@@ -28,7 +32,7 @@ def pc_to_freq(pc, default_octave):
     examples: b4, cs5, af8, an3
     """
     if pc == 'r':
-            return {"value" : 0, "octave" : 0}
+        return {"value" : 0, "octave" : default_octave}
 
     octave = default_octave
 
@@ -86,7 +90,7 @@ def pc_to_midi_note(pc, default_octave):
     examples: b4, cs5, af8, an3
     """
     if pc == 'r':
-            return {"value" : 0, "octave" : 0}
+            return {"value" : 0, "octave" : default_octave}
 
     octave = default_octave
 
@@ -168,26 +172,29 @@ def val_to_rhythm_string(val):
         if val > 0 and len(ret) > 0 and ret[len(ret)-1] != '+':
             ret += '+'
 
-    # if val > 0:
-
+    # double-check we didn't end up with '+' at the end. Still looking for this case to add to unit tests.
+    if len(ret) > 0 and ret[len(ret)-1] == '+':
+        pass
     return ret
 
 def rhythm_string_to_val(rhythm_string):
     multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
-    strings = rhythm_string.split('+')
+    strings = rhythm_string.strip().split('+')
     val = 0.0
     for s in strings:
-        if s[0] in multipliers.keys():
-            val += multipliers[s[0]]
-            if s.find("..") != -1:
-                val += val*.25
-            elif s.find('.') != -1:
-                val += val*.5
-        elif s.isdigit():
-            whole = 4
-            mult = (1.0 / int(s))
-            val += whole*mult
-
+        try:
+            if s[0] in multipliers.keys():
+                val += multipliers[s[0]]
+                if s.find("..") != -1:
+                    val += val*.25
+                elif s.find('.') != -1:
+                    val += val*.5
+            elif s.isdigit():
+                whole = 4
+                mult = (1.0 / int(s))
+                val += whole*mult
+        except IndexError:
+            pass
     return val
 
 
@@ -205,20 +212,23 @@ def rhythm_to_duration(rhythm_string, tempo):
     multipliers = {'w':4,'h':2,'q':1,'e':.5,'s':.25}
 
 
-    strings = rhythm_string.split('+')
+    strings = rhythm_string.strip().split('+')
 
     for s in strings:
         val = 0.0
-        if s[0] != '' and s[0] in multipliers.keys():
-            val = (dur_of_quarter * multipliers[s[0]])
-            if s.find("..") != -1:
-                val = val*.25
-            elif s.find('.') != -1:
-                val = val*.5
-        elif s.isdigit():
-            whole = (dur_of_quarter * 4)
-            mult = (1.0 / int(s))
-            val = whole*mult
+        try:
+            if s[0] != '' and s[0] in multipliers.keys():
+                val = (dur_of_quarter * multipliers[s[0]])
+                if s.find("..") != -1:
+                    val = val*.25
+                elif s.find('.') != -1:
+                    val = val*.5
+            elif s.isdigit():
+                whole = (dur_of_quarter * 4)
+                mult = (1.0 / int(s))
+                val = whole*mult
+        except IndexError:
+            pass
 
         ret += val
     return ret

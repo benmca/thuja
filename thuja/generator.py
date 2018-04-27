@@ -1,6 +1,7 @@
 from thuja.itemstream import Itemstream
 from thuja.new_event import NewEvent
 from thuja import utils
+import funcsigs
 
 
 class StreamKey:
@@ -133,9 +134,10 @@ class Generator:
 
             for item in self.post_processes:
                 if callable(item):
-                    # 9.2.2017 - I don't see why we were passing context back, when caller would have a ref already
-                    # item(note, self.context)
-                    item(note)
+                    if len(funcsigs.signature(item).parameters) > 1:
+                        item(note, self.context)
+                    else:
+                        item(note)
 
             if not note_is_chording:
                 if rhythm is not None:

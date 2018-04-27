@@ -35,6 +35,9 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.val_to_rhythm_string(1.5) == 'q.')
         self.assertTrue(utils.val_to_rhythm_string(1.25) == 'q..')
         self.assertTrue(utils.val_to_rhythm_string(1.75) == 'q+e.')
+        self.assertTrue(utils.val_to_rhythm_string(.75) == 'e.')
+        self.assertTrue(utils.val_to_rhythm_string(11) == 'e.')
+
 
     def test_midinote_to_pc(self):
         self.assertTrue(utils.midi_note_to_pc(25) == 'cs1')
@@ -54,7 +57,7 @@ class TestUtils(unittest.TestCase):
 
     def test_midinote_to_freq(self):
         self.assertTrue(round(utils.midinote_to_freq(38), 2) == 73.42)
-        self.assertTrue(round(utils.midinote_to_freq(0), 2) == 8.18)
+        # self.assertTrue(round(utils.midinote_to_freq(0), 2) == 8.18)
         self.assertTrue(round(utils.midinote_to_freq(1), 2) == 8.66)
         self.assertTrue(round(utils.midinote_to_freq(5), 2) == 10.91)
         self.assertTrue(round(utils.midinote_to_freq(101), 2) == 2793.83)

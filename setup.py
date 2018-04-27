@@ -8,6 +8,6 @@ setup(
     description="Python Module for algorithmic composition.",
     license="PSF",
     keywords="algorithmic music thuja",
-    url="https://github.com/benmca/pyComposition",   # project home page, if any
+    url="https://github.com/benmca/thuja",   # project home page, if any
 
 )
