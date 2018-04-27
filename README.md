@@ -135,14 +135,14 @@ i3      0.0 	0.1		1 		440
 ```
 In Thuja, **Itemstreams** define sequences of p-field values as notes are generated. They can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them, etc. 
 
-
-	from composition.itemstream import notetypes
-	from composition.itemstream import streammodes
-	from composition.itemstream import Itemstream
-	from composition.generator import Generator
-	from composition.generator import keys
+from thuja
+	from thuja.itemstream import notetypes
+	from thuja.itemstream import streammodes
+	from thuja.itemstream import Itemstream
+	from thuja.generator import Generator
+	from thuja.generator import keys
 	from collections import OrderedDict
-	from composition import utils
+	from thuja import utils
 	import copy
 	import csnd6
 
