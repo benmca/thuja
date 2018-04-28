@@ -1,5 +1,5 @@
-sr=44100
-ksmps=1000
+sr=96000
+ksmps=10
 nchnls=2
 
 ga1 init 0
@@ -19,7 +19,7 @@ indx = p9
 iorigdur = p10
 iendx = indx + iorigdur
 
-kamp	linen	iamp, .001, idur, .1
+kamp	linen	iamp, .001, idur, .001
 ktime   line    indx, idur , iendx
 
 al, ar	diskin	"/Users/ben/Music/_toSort/Ebow Tone Row.1.wav", ipitch, indx

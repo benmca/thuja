@@ -8,6 +8,7 @@ from collections import OrderedDict
 import numpy as np
 import csnd6
 import copy
+import random
 
 def post_process(note, context):
     item = context['tuplestream'].get_next_value()
@@ -16,7 +17,8 @@ def post_process(note, context):
     note.rhythm = utils.rhythm_to_duration(item[keys.rhythm], context['tuplestream'].tempo)
     note.pfields[keys.index] = item[keys.index]
     note.pfields['orig_rhythm'] = utils.rhythm_to_duration(orig_rhythm, context['tuplestream'].tempo)
-    note.pfields[keys.frequency] = context['tuplestream'].tempo / utils.quarter_duration_to_tempo(.697-.018)
+    # note.pfields[keys.frequency] = context['tuplestream'].tempo / utils.quarter_duration_to_tempo(.697-.018)
+    note.pfields[keys.frequency] = 1
     pass
 
 
@@ -45,38 +47,44 @@ g = Generator(
     note_limit=300,
     post_processes=[post_process]
 )
-g.context['rhythms'] = ['q', 'q', 's', 'e', 's', 's', 'e', 's', 'q', 'e.', 'e', 'q', 'e', 's']
-g.context['indexes'] = [.018, .697, 1.376, 1.538, 1.869, 2.032, 2.2, 2.543, 2.705, 3.373, 3.895, 4.232, 4.894, 5.236]
 
-for x in range(len(g.context['indexes'])):
-    g.context['indexes'][x] = g.context['indexes'][x] + 10
 
-g.context['orig_rhythms'] = ['q', 'q', 's', 'e', 's', 's', 'e', 's', 'q', 'e.', 'e', 'q', 'e', 's']
+def gen_rhythms(gen, l):
+    rhystrings = ['q','s'*5,'e','e.','h']
+    gen.context['rhythms'] = []
+    gen.context['indexes'] = []
+    for x in range(l):
+        gen.context['rhythms'].append(rhystrings[random.randint(0, len(rhystrings)-1)])
+        gen.context['indexes'].append(random.random()*162)
+        gen.context['orig_rhythms'] = gen.context['rhythms']
+
+
+gen_rhythms(g, 30)
 g.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
                                       mapping_lists=[g.context['rhythms'],
                                                      g.context['indexes']],
-                                      tempo=80,
+                                      tempo=120,
                                       streammode=streammodes.random)
 #
-# g2 = copy.deepcopy(g)
-# g2.context['indexes'] = [.018]
-# g2.context['rhythms'] = ['q']
-# g2.streams[keys.pan] = Itemstream([0])
-# g2.streams[keys.amplitude] = Itemstream([1])
-# g2.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
-#                                       mapping_lists=[g2.context['rhythms'],
-#                                                      g2.context['indexes']],
-#                                       tempo=80)
+g2 = copy.deepcopy(g)
+gen_rhythms(g2, 2)
+g2.streams[keys.pan] = Itemstream([0])
+g2.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
+                                      mapping_lists=[g2.context['rhythms'],
+                                                     g2.context['indexes']],
+                                      tempo=60,
+                                      streammode=streammodes.random)
 #
-# g3 = copy.deepcopy(g2)
-# g3.context['indexes'] = [.018]
-# g3.context['rhythms'] = ['s']
-# g3.streams[keys.pan] = Itemstream([90])
-# g3.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
-#                                       mapping_lists=[g3.context['rhythms'],
-#                                                      g3.context['indexes']],
-#                                       tempo=80)
+g3 = copy.deepcopy(g2)
+gen_rhythms(g3, 2)
+g3.streams[keys.pan] = Itemstream([90])
+g3.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
+                                      mapping_lists=[g3.context['rhythms'],
+                                                     g3.context['indexes']],
+                                      tempo=60)
 
+g.add_generator(g2)
+g.add_generator(g3)
 g.gen_lines = [';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
