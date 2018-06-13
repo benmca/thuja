@@ -17,12 +17,15 @@ idist = p7
 ipct = p8
 indx = p9
 iorigdur = p10
+Spath = p11
+inumchannels = p12
+
 iendx = indx + iorigdur
 
 kamp	linen	iamp, .001, idur, .001
 ktime   line    indx, idur , iendx
 ;al, ar	diskin	"/Users/ben/Music/_toSort/Ebow Tone Row.1.wav", ipitch, indx
-al	diskin	"/Users/ben/Music/_toSort/2017.06.04.SlidesIdea.wav", ipitch, indx
+al	diskin	Spath, ipitch, indx
 ;al  sndwarp kamp, ktime, 1, 3, 0, 4410, 882, 15, 1, 1
 
 al=al*kamp

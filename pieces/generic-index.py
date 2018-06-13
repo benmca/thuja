@@ -2,6 +2,7 @@ from thuja.itemstream import Itemstream
 from thuja.generator import Generator
 from thuja.generator import keys
 from thuja.itemstream import streammodes
+from thuja.itemstream import notetypes
 import thuja.utils as utils
 import thuja.csound_utils as cs_utils
 from collections import OrderedDict
@@ -11,9 +12,23 @@ import copy
 import random
 
 # random.seed(12)
-random.seed(10)
+random.seed(11)
 
 filelen = 35
+tempo = 120
+
+pitches_to_files = {
+    'a':'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav',
+    'a': 'a.wav'
+}
+
 # filelen = 162
 def post_process(note, context):
     item = context['tuplestream'].get_next_value()
@@ -32,10 +47,12 @@ g = Generator(
         (keys.instrument, Itemstream([1])),
         (keys.duration, lambda note:note.pfields['orig_rhythm']),
         (keys.amplitude, Itemstream([3])),
-        (keys.frequency, Itemstream([1], notetype='number')),
+        (keys.frequency, Itemstream([1], notetype=notetypes.number)),
         (keys.pan, Itemstream([45])),
         (keys.distance, Itemstream([10])),
-        (keys.percent, Itemstream([.01]))
+        (keys.percent, Itemstream([.01])),
+        ('inst_file', Itemstream(["/Users/ben/Music/_toSort/2017.06.04.SlidesIdea.wav",
+                                  "/Users/ben/Music/_toSort/Ebow Tone Row.1_00.wav"], notetype=notetypes.path))
     ]),
     pfields=[
         keys.instrument,
@@ -47,7 +64,8 @@ g = Generator(
         keys.distance,
         keys.percent,
         keys.index,
-        'orig_rhythm'
+        'orig_rhythm',
+        'inst_file'
     ],
     note_limit=300,
     post_processes=[post_process]
@@ -71,7 +89,7 @@ gen_rhythms(g, 30)
 g.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
                                       mapping_lists=[g.context['rhythms'],
                                                      g.context['indexes']],
-                                      tempo=120,
+                                      tempo=tempo,
                                       streammode=streammodes.random)
 #
 g2 = copy.deepcopy(g)
@@ -80,7 +98,7 @@ g2.streams[keys.pan] = Itemstream([0])
 g2.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
                                       mapping_lists=[g2.context['rhythms'],
                                                      g2.context['indexes']],
-                                      tempo=60,
+                                      tempo=tempo*.5,
                                       streammode=streammodes.random)
 #
 g3 = copy.deepcopy(g2)
@@ -89,7 +107,7 @@ g3.streams[keys.pan] = Itemstream([90])
 g3.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
                                       mapping_lists=[g3.context['rhythms'],
                                                      g3.context['indexes']],
-                                      tempo=60)
+                                      tempo=tempo*.5)
 
 g.add_generator(g2)
 g.add_generator(g3)
@@ -102,8 +120,7 @@ g.gen_lines = [';sine\n',
 g.streams[keys.amplitude] = Itemstream([.5])
 g.generate_notes()
 
-
-
 g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 
-cs_utils.play_csound("indexebow.orc", g)
+# print(g.generate_score_string())
+cs_utils.play_csound("generic-index.orc", g)

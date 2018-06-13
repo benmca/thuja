@@ -14,6 +14,7 @@ class Notetypes:
         self.rhythm = 'rhythm'
         self.pitch = 'pitch'
         self.number = 'number'
+        self.path = 'path'
 
 class Streammodes:
     """Values for initialization of streammode attribute of Itemstreams
@@ -109,6 +110,10 @@ class Itemstream:
                 result = utils.pc_to_freq(self.values[self.index][self.chording_index], self.current_octave)
                 ret = result["value"]
                 self.current_octave = result["octave"]
+            elif self.notetype == notetypes.path:
+                # ret = '"' + result["value"] + '"'
+                ret = '"' + "hi" + '"'
+                pass
             elif self.notetype == notetypes.rhythm:
                 if isinstance(self.tempo, list):
                     ret = utils.rhythm_to_duration(self.values[self.index][self.chording_index],
@@ -155,6 +160,9 @@ class Itemstream:
             # default case
             if self.notetype == notetypes.number:
                 ret = self.values[self.index]
+            elif self.notetype == notetypes.path:
+                # ret = '"' + result["value"] + '"'
+                ret = '"' + self.values[self.index] + '"'
             elif self.notetype == notetypes.pitch:
                 result = utils.pc_to_freq(self.values[self.index], self.current_octave)
                 ret = result["value"]
