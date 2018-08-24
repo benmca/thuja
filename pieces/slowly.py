@@ -16,11 +16,11 @@ import pickle
 import time
 
 
-seed = int(time.time())
-seed = 1528952907
+# seed = int(time.time())
+seed = 1531254620
 random.seed(seed)
 filelen = 60
-tempo = 240
+tempo = 60
 
 pitches_to_files = {
     'a': 'a.wav',
@@ -45,8 +45,8 @@ def post_process(note, context):
     note.pfields[keys.index] = item[keys.index]
     note.pfields['orig_rhythm'] = utils.rhythm_to_duration(orig_rhythm, context['tuplestream'].tempo)
     # note.pfields[keys.frequency] = context['tuplestream'].tempo / utils.quarter_duration_to_tempo(.697-.018)
-    note.pfields['inst_file'] = '"' + '/Users/ben/Music/Portfolio/_gtrs/' + note.pfields[keys.frequency] + '.wav' + '"'
-    note.pfields[keys.frequency] = 1
+    note.pfields['inst_file'] = '"' + '/Users/ben/Music/Portfolio/_gtrs/' + note.pfields['filepitch'] + '.wav' + '"'
+    # note.pfields[keys.frequency] = 1
     pass
 
 
@@ -55,11 +55,13 @@ g = Generator(
         (keys.instrument, Itemstream([1])),
         (keys.duration, lambda note:note.pfields['orig_rhythm']),
         (keys.amplitude, Itemstream([3])),
-        (keys.frequency, Itemstream(['a', 'a',  'c', 'c', 'd', 'd', 'd'])),
+        (keys.frequency, Itemstream([1])),
         (keys.pan, Itemstream([45])),
         (keys.distance, Itemstream([10])),
         (keys.percent, Itemstream([.01])),
-        ('output_prefix', Itemstream([1]))
+        ('output_prefix', Itemstream([1])),
+        ('filepitch', Itemstream(['a', 'a', 'c', 'c', 'd', 'd'])),
+        ('stretch', Itemstream(['1'])),
     ]),
     pfields=[
         keys.instrument,
@@ -83,6 +85,8 @@ g = Generator(
 def gen_rhythms(gen, l, opt=1):
     if opt == 1:
         rhystrings = sum([['q'],['s']*5, ['e'], ['e.'], ['h']], [])
+    if opt == 2:
+        rhystrings = sum(['e q q q q e e e e e e e e e e e'.split()], [])
     else:
         rhystrings = sum([['32'], ['s']*4, ['e']*4, ['e.'], ['h']], [])
     gen.context['rhythms'] = []
@@ -93,60 +97,52 @@ def gen_rhythms(gen, l, opt=1):
         gen.context['orig_rhythms'] = gen.context['rhythms']
 
 
-gen_rhythms(g, 30)
+gen_rhythms(g, 6*4, 2)
 g.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
                                       mapping_lists=[g.context['rhythms'],
                                                      g.context['indexes']],
                                       tempo=tempo,
-                                      streammode=streammodes.random,
+                                      # streammode=streammodes.random,
                                       seed=seed)
-
-g2 = copy.deepcopy(g)
-gen_rhythms(g2, 2)
-g2.streams[keys.pan] = Itemstream([0])
-g2.streams[keys.amplitude] = Itemstream([1])
-g2.streams['output_prefix'] = Itemstream([2])
-# g2.streams[keys.frequency] = Itemstream(['g'])
-g2.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
-                                      mapping_lists=[g2.context['rhythms'],
-                                                     g2.context['indexes']],
-                                      tempo=tempo*.5,
-                                      streammode=streammodes.random,
-                                       seed=seed)
-#
-g3 = copy.deepcopy(g2)
-gen_rhythms(g3, 2)
-# g3.streams[keys.frequency] = Itemstream(['g'])
-g3.streams[keys.pan] = Itemstream([90])
-g3.streams[keys.amplitude] = Itemstream([1])
-g2.streams['output_prefix'] = Itemstream([3])
-g3.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
-                                      mapping_lists=[g3.context['rhythms'],
-                                                     g3.context['indexes']],
-                                      tempo=tempo*.5,
-                                       seed=seed)
-
-g.add_generator(g2)
-g.add_generator(g3)
 g.gen_lines = [';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
                'f 2 0 256 7 0 128 1 0 -1 128 0\n',
                ';pulse\n',
                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-g.streams[keys.amplitude] = Itemstream([.5])
+# g.streams[keys.amplitude] = Itemstream([0])
 g.generate_notes()
 
+
+metronome = copy.deepcopy(g)
+
+
+metronome.context['rhythms'] = ['q']
+metronome.context['indexes'] = [23.301317351754314]
+metronome.context['orig_rhythms'] = g.context['rhythms']
+metronome.streams[keys.frequency] = Itemstream([6])
+metronome.streams[keys.pan] = Itemstream([90])
+metronome.streams[keys.amplitude] = Itemstream([5])
+metronome.streams[keys.duration] = Itemstream([.01])
+metronome.streams['filepitch'] = Itemstream(['a'])
+metronome.context['tuplestream'] = Itemstream(mapping_keys=[keys.rhythm, keys.index],
+                                      mapping_lists=[metronome.context['rhythms'],
+                                                     metronome.context['indexes']],
+                                      tempo=tempo,
+                                      seed=seed)
+g.add_generator(metronome)
+g.generate_notes()
+
+
 g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
-
-
 print(g.generate_score_string())
 
 print('seed:', seed)
-for x in [g, g2, g3]:
-    print(x.streams[keys.frequency].values)
-    print("g.context['rhythms'] =", x.context['rhythms'])
-    print("g.context['indexes'] =", x.context['indexes'])
-    print(x.context['tuplestream'].seed)
+x=g
+# for x in [g, g2, g3]:
+print(x.streams[keys.frequency].values)
+print("g.context['rhythms'] =", x.context['rhythms'])
+print("g.context['indexes'] =", x.context['indexes'])
+print(x.context['tuplestream'].seed)
 
 cs_utils.play_csound("generic-index.orc", g, silent=True)

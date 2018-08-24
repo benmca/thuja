@@ -24,7 +24,6 @@ class StreamKey:
         self.percent = 'pct'
 
 
-
 class Generator:
 
     def __init__(self, note_limit=16,

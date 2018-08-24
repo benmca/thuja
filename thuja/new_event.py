@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+
 class NewEvent:
     # ----------------------------------------------------------------------
     def __init__(self, pfields=None):

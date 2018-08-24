@@ -120,5 +120,3 @@ cs.SetOption("--m-amps=0")
 cs.Start()
 cs.Perform()
 cs.Stop()
-
-x

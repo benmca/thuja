@@ -1,5 +1,6 @@
 from thuja import utils
 import random
+import time
 
 class Notetypes:
     """Values for initialization of notetype attribute of Itemstreams
@@ -15,6 +16,7 @@ class Notetypes:
         self.pitch = 'pitch'
         self.number = 'number'
         self.path = 'path'
+
 
 class Streammodes:
     """Values for initialization of streammode attribute of Itemstreams
@@ -32,10 +34,9 @@ class Streammodes:
         self.random = 'random'
 
 
-
-
 streammodes = Streammodes()
 notetypes = Notetypes()
+
 
 class Itemstream:
     """A container for streams of musical data.
@@ -56,7 +57,8 @@ class Itemstream:
                  tempo=120,
                  tag='',
                  mapping_keys=None,
-                 mapping_lists=None):
+                 mapping_lists=None,
+                 seed=int(time.time())):
 
         """Constructor"""
         self.values = values
@@ -75,6 +77,10 @@ class Itemstream:
         self.tag = tag
 
         self.current_value = None
+        # save seed to repeat random operations
+        self.seed = seed
+        self.rand = random.Random()
+        self.rand.seed(self.seed)
 
         assert not isinstance(values, str)
 
@@ -144,12 +150,12 @@ class Itemstream:
                     if len(self.heapdict) == len(self.values):
                         self.heapdict.clear()
                     while not added:
-                        self.index = random.randrange(0, len(self.values))
+                        self.index = self.rand.randrange(0, len(self.values))
                         if (self.index in self.heapdict) == False:
                             added = True
                             self.heapdict.add(self.index)
                 elif self.streammode == streammodes.random:
-                    self.index = random.randrange(0, len(self.values))
+                    self.index = self.rand.randrange(0, len(self.values))
 
         elif isinstance(self.values[self.index], Itemstream):
             self.is_chording = False
@@ -188,13 +194,14 @@ class Itemstream:
                     self.heapdict.clear()
 
                 while not added:
-                    self.index = random.randrange(0, len(self.values))
-                    if (self.index in self.heapdict) == False:
+                    self.index = self.rand.randrange(0, len(self.values))
+                    if not (self.index in self.heapdict):
                         added = True
                         self.heapdict.add(self.index)
 
             elif self.streammode == streammodes.random:
-                self.index = random.randrange(0, len(self.values))
+                self.index = self.rand.randrange(0, len(self.values))
+                pass
 
         self.note_count += 1
         self.current_value = ret

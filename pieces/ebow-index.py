@@ -56,9 +56,9 @@ g = Generator(
 
 def gen_rhythms(gen, l, opt=1):
     if opt == 1:
-        rhystrings = ['q','s'*5, 'e', 'e.', 'h']
+        rhystrings = sum([['q'], ['s'] * 5, ['e'], ['e.'], ['h']], [])
     else:
-        rhystrings = ['32', 's'*4, 'e'*4, 'e.', 'h']
+        rhystrings = sum([['32'], ['s'] * 4, ['e'] * 4, ['e.'], ['h']], [])
     gen.context['rhythms'] = []
     gen.context['indexes'] = []
     for x in range(l):

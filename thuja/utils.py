@@ -19,11 +19,13 @@ def freq_to_midi_note(freq):
         ret = int(math.floor(val))
     return ret
 
+
 def midinote_to_freq(midinote):
     if midinote == 0:
         return 0.0
     ret = 440.0 * math.pow(2.0, (midinote - 69.0)/12.0)
     return ret
+
 
 def pc_to_freq(pc, default_octave):
     """
