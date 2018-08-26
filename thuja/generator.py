@@ -1,6 +1,7 @@
 from thuja.itemstream import Itemstream
 from thuja.event import Event
 from thuja import utils
+from collections import OrderedDict
 import funcsigs
 
 
@@ -35,7 +36,10 @@ class Generator:
                  gen_lines=[]):
 
         self.start_time = start_time
-        self.streams = streams
+        if isinstance(streams, OrderedDict):
+            self.streams = streams
+        else:
+            self.streams = OrderedDict(streams)
         self.note_limit = note_limit
 
         self.cur_time = 0.0

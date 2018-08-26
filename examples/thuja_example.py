@@ -3,7 +3,6 @@ from thuja.itemstream import streammodes
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
 from thuja.generator import keys
-from collections import OrderedDict
 from thuja import csound_utils
 import copy
 
@@ -25,13 +24,13 @@ pitches = Itemstream(sum(['c4 c c d c5 c c d'.split(),
 )
 
 g = Generator(
-    streams=OrderedDict([
+    streams=[
         (keys.instrument, 1),
         (keys.rhythm, rhythms),
         (keys.duration, Itemstream([.1])),
         (keys.amplitude, 1),
         (keys.frequency, pitches),
-    ]),
+    ],
     pfields=None,
     note_limit=(len(pitches.values)*4),
     gen_lines=[';sine',
