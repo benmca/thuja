@@ -61,7 +61,12 @@ class Itemstream:
                  seed=int(time.time())):
 
         """Constructor"""
-        self.values = values
+
+        # if string, assume it's space-delimited items when creating item-streams
+        if values and isinstance(values, str):
+            self.values = values.split()
+        else:
+            self.values = values
         self.index = 0
         self.streammode = streammode
         self.notetype = notetype
@@ -82,7 +87,7 @@ class Itemstream:
         self.rand = random.Random()
         self.rand.seed(self.seed)
 
-        assert not isinstance(values, str)
+        # assert not isinstance(values, str)
 
         if mapping_keys is not None and mapping_lists is not None:
             self.values = []

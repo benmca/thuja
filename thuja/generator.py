@@ -189,11 +189,12 @@ class Generator:
     def generate_score_string(self):
         retstring = ""
         for x in range(len(self.gen_lines)):
-            retstring += self.gen_lines[x]
+            retstring += self.gen_lines[x] + '\n'
         for y in range(len(self.notes)):
             retstring += self.notes[y]
         for x in range(len(self.end_lines)):
             retstring += self.end_lines[x]
         return retstring
+
 
 keys = StreamKey()
