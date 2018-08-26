@@ -45,12 +45,12 @@ class TestGenerators(unittest.TestCase):
             note_limit=(len(pitches.values) * 2)
         )
 
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
         g.generate_notes()
         score_string = g.generate_score_string()
         self.assertTrue(score_string is not None)
-        self.assertTrue(len(score_string.split('\n')) == 22)
+        self.assertTrue(len(score_string.split('\n')) == 23)
 
     def test_callables_lambda(self):
         tuplestream = Itemstream(
@@ -81,12 +81,12 @@ class TestGenerators(unittest.TestCase):
             note_limit=(len(pitches.values) * 2)
         )
 
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
         g.generate_notes()
         score_string = g.generate_score_string()
         self.assertTrue(score_string is not None)
-        self.assertTrue(len(score_string.split('\n')) == 22)
+        self.assertTrue(len(score_string.split('\n')) == 23)
 
     def test_callables_postprocesses(self):
         rhythms = 'h h w h h h'.split()
@@ -125,16 +125,12 @@ class TestGenerators(unittest.TestCase):
         g.context['indexstream'] = Itemstream([1, 1, 1, 4, 5])
         g.context['tuplestream'] = tuplestream
 
-        g.gen_lines = [';sine\n',
-                       'f 1 0 16384 10 1\n',
-                       ';saw',
-                       'f 2 0 256 7 0 128 1 0 -1 128 0\n',
-                       ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
         g.generate_notes()
         score_string = g.generate_score_string()
         self.assertTrue(score_string is not None)
-        self.assertTrue(len(score_string.split('\n')) == 22)
+        self.assertTrue(len(score_string.split('\n')) == 23)
 
     def test_indexpoints(self):
         tuplestream = Itemstream(
@@ -165,12 +161,12 @@ class TestGenerators(unittest.TestCase):
             note_limit=(len(pitches.values) * 2)
         )
 
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
         g.generate_notes()
         score_string = g.generate_score_string()
         self.assertTrue(score_string is not None)
-        self.assertTrue(len(score_string.split('\n')) == 22)
+        self.assertTrue(len(score_string.split('\n')) == 23)
 
     def test_basiccase(self):
         rhythms = Itemstream(['q','32'], 'sequence', tempo=60)
@@ -192,8 +188,8 @@ class TestGenerators(unittest.TestCase):
             note_limit=(len(pitches.values) * 2)
         )
 
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
         g.generate_notes()
 
         output = ""
@@ -205,7 +201,7 @@ class TestGenerators(unittest.TestCase):
         score = g.generate_score_string()
         self.assertTrue(score is not None)
         print(len(score.split('\n')))
-        self.assertTrue(len(score.split('\n')) == 22)
+        self.assertTrue(len(score.split('\n')) == 23)
 
     def test_tempo(self):
         rhythms = Itemstream(['e'] * 60, 'sequence',
@@ -235,8 +231,8 @@ class TestGenerators(unittest.TestCase):
             ]),
             note_limit=240
         )
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                                  'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
 
         g.generate_notes()
         g.streams[keys.rhythm].tempo = np.linspace(480, 30, 32).tolist() + np.linspace(30, 480, 32).tolist()
@@ -247,7 +243,7 @@ class TestGenerators(unittest.TestCase):
 
         score = g.generate_score_string()
         self.assertTrue(score is not None)
-        self.assertTrue(len(score.split('\n')) == 487)
+        self.assertTrue(len(score.split('\n')) == 488)
 
 
     def test_literals(self):
@@ -277,8 +273,8 @@ class TestGenerators(unittest.TestCase):
             ]),
             note_limit=240
         )
-        g.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-                       'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        g.gen_lines = [';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
 
         g.generate_notes()
         g.streams[keys.rhythm].tempo = np.linspace(480, 30, 32).tolist() + np.linspace(30, 480, 32).tolist()
@@ -290,7 +286,7 @@ class TestGenerators(unittest.TestCase):
 
         score = g.generate_score_string()
         self.assertTrue(score is not None)
-        self.assertTrue(len(score.split('\n')) == 487)
+        self.assertTrue(len(score.split('\n')) == 488)
 
 if __name__ == '__main__':
     unittest.main()

@@ -57,13 +57,13 @@ class Generator:
         self.post_processes = post_processes
         self.generators = []
 
-
     def update_stream(self, key, stream):
         self.streams[key] = stream
         return self
 
     def generate_score(self, filename=None):
         self.note_count = 0
+        self.notes = []
         self.cur_time = self.start_time
 
         f = None
