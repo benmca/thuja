@@ -1,5 +1,5 @@
 from thuja.itemstream import Itemstream
-from thuja.new_event import NewEvent
+from thuja.event import Event
 from thuja import utils
 import funcsigs
 
@@ -98,7 +98,7 @@ class Generator:
         ret_lines = []
 
         while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
-            note = NewEvent(pfields=self.pfields)
+            note = Event(pfields=self.pfields)
             note.pfields[keys.start_time] = self.cur_time
 
             # todo - validate we're ok to roll: we have at least an instr and rhythm
@@ -156,7 +156,7 @@ class Generator:
                     value = self.streams[key](note)
                     note.pfields[key] = value
 
-            if self.time_limit > 0 and self.cur_time > self.time_limit:
+            if self.cur_time > self.time_limit > 0:
                 break
             else:
                 ret_lines.append(str(note) + "\n")

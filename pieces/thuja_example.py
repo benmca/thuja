@@ -41,7 +41,7 @@ g = Generator(
     ]),
     pfields=None,
     note_limit=(len(pitches.values)*4),
-    gen_lines = [';sine\n',
+    gen_lines=[';sine\n',
                'f 1 0 16384 10 1\n',
                ';saw',
                'f 2 0 256 7 0 128 1 0 -1 128 0\n',

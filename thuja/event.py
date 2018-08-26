@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 
-class NewEvent:
+class Event:
     # ----------------------------------------------------------------------
     def __init__(self, pfields=None):
         """Constructor"""

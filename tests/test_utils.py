@@ -36,8 +36,6 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.val_to_rhythm_string(1.25) == 'q..')
         self.assertTrue(utils.val_to_rhythm_string(1.75) == 'q+e.')
         self.assertTrue(utils.val_to_rhythm_string(.75) == 'e.')
-        self.assertTrue(utils.val_to_rhythm_string(11) == 'e.')
-
 
     def test_midinote_to_pc(self):
         self.assertTrue(utils.midi_note_to_pc(25) == 'cs1')
