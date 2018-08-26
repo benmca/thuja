@@ -34,7 +34,7 @@ def pc_to_freq(pc, default_octave):
     examples: b4, cs5, af8, an3
     """
     if pc == 'r':
-        return {"value" : 0, "octave" : default_octave}
+        return {"value": 0, "octave": default_octave}
 
     octave = default_octave
 
@@ -53,7 +53,7 @@ def pc_to_freq(pc, default_octave):
 
     # print 'pc_to_freq: pitch index: ' + str(pitchindex)
 
-    return {"value" : midinote_to_freq(midinote), "octave" : octave}
+    return {"value": midinote_to_freq(midinote), "octave": octave}
 
 def freq_to_pc(freq, include_octave):
     """
