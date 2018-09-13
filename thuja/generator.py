@@ -2,6 +2,7 @@ from thuja.itemstream import Itemstream
 from thuja.event import Event
 from thuja import utils
 from collections import OrderedDict
+import copy
 import funcsigs
 
 
@@ -60,6 +61,14 @@ class Generator:
         self.context = init_context
         self.post_processes = post_processes
         self.generators = []
+
+    def deepcopy(self):
+        result = copy.deepcopy(self)
+        result.streams = OrderedDict()
+        for k, v in self.streams.items():
+            # setattr(result, k, deepcopy(v, memo))
+            result.streams.__setitem__(k, copy.deepcopy(v))
+        return result
 
     def update_stream(self, key, stream):
         self.streams[key] = stream
@@ -169,16 +178,16 @@ class Generator:
                 if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
                     self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
 
-        for generator in self.generators:
-            generator.start_time += self.start_time
-            if self.time_limit > 0 and generator.time_limit == 0:
-                generator.time_limit = self.time_limit
-            if self.note_limit > 0 and generator.note_limit == 0:
-                generator.note_limit = self.note_limit
-            generator.generate_notes()
-            self.notes.extend(generator.notes)
-            if generator.score_dur > self.score_dur:
-                self.score_dur = generator.score_dur
+        for g in self.generators:
+            g.start_time += self.start_time
+            if self.time_limit > 0 and g.time_limit == 0:
+                g.time_limit = self.time_limit
+            if self.note_limit > 0 and g.note_limit == 0:
+                g.note_limit = self.note_limit
+            g.generate_notes()
+            self.notes.extend(g.notes)
+            if g.score_dur > self.score_dur:
+                self.score_dur = g.score_dur
 
         return self
 
@@ -199,6 +208,9 @@ class Generator:
         for x in range(len(self.end_lines)):
             retstring += self.end_lines[x]
         return retstring
+
+    def tempo(self):
+        return self.streams[keys.rhythm].tempo
 
 
 keys = StreamKey()
