@@ -1,4 +1,7 @@
 from thuja.itemstream import Itemstream
+from thuja.itemstream import Streammodes
+from thuja.itemstream import Notetypes
+
 from thuja.event import Event
 from thuja import utils
 from collections import OrderedDict
@@ -7,6 +10,20 @@ import funcsigs
 
 
 class StreamKey:
+    instrument = 'instr'
+    start_time = 'start_time'
+    duration = 'dur'
+    rhythm = 'rhy'
+    amplitude = 'amp'
+    frequency = 'freq'
+
+    # support loopindx
+    index = 'indx'
+
+    # locsig support
+    pan = 'pan'
+    distance = 'dist'
+    percent = 'pct'
 
     def __init__(self):
         # the usual suspects
@@ -26,6 +43,72 @@ class StreamKey:
         self.percent = 'pct'
 
 
+class BasicLine:
+
+    def __init__(self):
+        self.line = Generator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, lambda note: note.pfields['orig_rhythm']),
+                (keys.amplitude, Itemstream([1])),
+                (keys.frequency, Itemstream([1])),
+                (keys.pan, Itemstream([45])),
+                (keys.distance, Itemstream([10])),
+                (keys.percent, Itemstream([.01]))
+            ]),
+            pfields=[
+                keys.instrument,
+                keys.start_time,
+                keys.duration,
+                keys.amplitude,
+                keys.frequency,
+                keys.pan,
+                keys.distance,
+                keys.percent
+            ]
+        )
+        self.line.gen_lines = [';sine\n',
+                     'f 1 0 16384 10 1\n',
+                     ';saw',
+                     'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+                     ';pulse\n',
+                     'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+
+    def set_stream(self, k, v):
+        if isinstance(v, Itemstream):
+            self.line.streams[k] = v
+        elif isinstance(v, str):
+            self.line.streams[k] = Itemstream(v.split())
+        elif isinstance(v, list):
+            self.line.streams[k] = Itemstream(v)
+
+    def with_rhythm(self, v):
+        if isinstance(v, str) or isinstance(v, list):
+            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().rhythm))
+        else:
+            self.set_stream(StreamKey().frequency, v)
+        return self
+
+    def with_duration(self, v):
+        self.set_stream(StreamKey().duration, v)
+        return self
+
+    def with_amps(self, v):
+        self.set_stream(StreamKey().amplitude, v)
+        return self
+
+    def with_frequencies(self, v):
+        self.set_stream(StreamKey().frequency, v)
+        return self
+
+    def with_pitches(self, v):
+        if isinstance(v, str):
+            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
+        else:
+            self.set_stream(StreamKey().frequency, v)
+        return self
+
+
 class Generator:
 
     def __init__(self, note_limit=16,
@@ -37,9 +120,10 @@ class Generator:
                  gen_lines=[]):
 
         self.start_time = start_time
+        self.streams = None
         if isinstance(streams, OrderedDict):
             self.streams = streams
-        else:
+        if streams is not None:
             self.streams = OrderedDict(streams)
         self.note_limit = note_limit
 
@@ -53,14 +137,28 @@ class Generator:
         self.score_dur = 0
 
         self.pfields = pfields
-        if self.pfields is None:
-            self.pfields = list(self.streams.keys())
-            self.pfields.insert(1, keys.start_time)
+        if pfields is None:
+            if self.streams is not None:
+                self.pfields = list(self.streams.keys())
+                self.pfields.insert(1, keys.start_time)
 
         # a place to put stuff to refer to in callables - not sure best way forward here
         self.context = init_context
         self.post_processes = post_processes
         self.generators = []
+
+    def with_streams(self, streams):
+        if isinstance(streams, OrderedDict):
+            self.streams = streams
+        if streams is None:
+            pass
+        else:
+            self.streams = OrderedDict(streams)
+
+
+    def with_pfields(self, pfields):
+        self.pfields = pfields
+        return self
 
     def deepcopy(self):
         result = copy.deepcopy(self)
