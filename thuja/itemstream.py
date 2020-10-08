@@ -106,6 +106,11 @@ class Itemstream:
                     item[key] = mapping_lists[keydx][i % len(mapping_lists[keydx])]
                 self.values.append(item)
 
+    def set_seed(self, seed):
+        self.seed = seed
+        self.rand = random.Random()
+        self.rand.seed(self.seed)
+
     def get_next_value(self):
         ret = None
         # global myScore
@@ -155,6 +160,7 @@ class Itemstream:
                     if len(self.heapdict) == len(self.values):
                         self.heapdict.clear()
                     while not added:
+                        # self.index = self.rand.randrange(0, len(self.values))
                         self.index = self.rand.randrange(0, len(self.values))
                         if (self.index in self.heapdict) == False:
                             added = True

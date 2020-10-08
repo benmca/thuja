@@ -87,6 +87,7 @@ class TestItemstreams(unittest.TestCase):
     #     self.assertTrue(len(score.split('\n')) == 54)
     #
     # def test_tempo(self):
+    #
     #     rhythms = Itemstream(['e'] * 60, 'sequence',
     #                          tempo=np.linspace(120, 480, 32).tolist() + np.linspace(480, 120, 32).tolist())
     #     rhythms.notetype = 'rhythm'
@@ -122,7 +123,7 @@ class TestItemstreams(unittest.TestCase):
     #     self.assertTrue(len(score.split('\n')) == 487)
     #
     # def test_basiccase(self):
-    #     rhythms = Itemstream(['q'], 'sequence', tempo=[120, 60, 30])
+    #     rhythms = Itemstream(['w h q e s'], 'heap', tempo=120)
     #     rhythms.notetype = 'rhythm'
     #     amps = Itemstream([1])
     #
@@ -164,6 +165,13 @@ class TestItemstreams(unittest.TestCase):
     #     self.assertTrue(len(score.split('\n')) == 54)
 
 
+
+    # def test_basiccase(self):
+    #     rhythms = Itemstream('w h q e s'.split(), 'random', tempo=120)
+    #     rhythms.set_seed(101)
+    #
+    #     l = list(map(lambda x: rhythms.get_next_value(), range(5)))
+    #     return
 
 if __name__ == '__main__':
     unittest.main()
