@@ -3,6 +3,10 @@
 
 Python Module for algorithmic composition. The module specifically targets Csound, and generates Csound score (.sco) files for use in Csound pieces. Itemstreams were inspired by Rick Taube's Common Music 1.x.
 
+The `requirements.txt` file includes the additional python libraries that need to be installed. You can install them with `pip install -r requirements.txt` prior to installing thuja.
+
+You will also need to install Csound: https://csound.com/download.html
+
 # Overview
 
 Thuja is built on a two simple classes that deliver a ton of flexibility in composing Csound score files.
