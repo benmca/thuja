@@ -11,6 +11,27 @@ import numpy as np
 
 
 class TestUtils(unittest.TestCase):
+    semitones = [
+        # (frequency, midi, pitch, octave),
+        (    0.00,   0, 'c',  -1),
+        (    8.66,   1, 'cs', -1),
+        (    9.18,   2, 'd',  -1),
+        (   10.30,   4, 'e',  -1),
+        (   10.91,   5, 'f',  -1),
+        (   12.98,   8, 'gs', -1),
+        (   20.60,  16, 'e',   0),
+        (   32.70,  24, 'c',   1),
+        (   34.65,  25, 'cs',  1),
+        (   51.91,  32, 'gs',  1),
+        (   73.42,  38, 'd',   2),
+        (  110.00,  45, 'a',   2),
+        (  261.63,  60, 'c',   4),
+        (  329.63,  64, 'e',   4),
+        ( 1760.00,  93, 'a',   6),
+        ( 2793.83, 101, 'f',   7),
+        (13289.75, 128, 'gs',  9),
+        ]
+
     def test_rhythms(self):
         self.assertTrue(utils.add_rhythm('w', 's') == 'w+s')
         self.assertTrue(utils.add_rhythm('h', 's') == 'h+s')
@@ -38,37 +59,40 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(utils.val_to_rhythm_string(.75) == 'e.')
 
     def test_midinote_to_pc(self):
-        self.assertTrue(utils.midi_note_to_pc(25) == 'cs1')
-        self.assertTrue(utils.midi_note_to_pc(25, False) == 'cs')
-        self.assertTrue(utils.midi_note_to_pc(24) == 'c1')
-        self.assertTrue(utils.midi_note_to_pc(60, False) == 'c')
-        self.assertTrue(utils.midi_note_to_pc(60) == 'c4')
+        for freq, midi, pitch, octave in self.semitones:
+            pitch_w_octave = f"{pitch}{octave}"
+            calc_pitch_w_octave = utils.midi_note_to_pc(midi)
+            self.assertTrue(pitch_w_octave == calc_pitch_w_octave)
+
+            calc_pitch = utils.midi_note_to_pc(midi, False)
+            self.assertTrue(pitch == calc_pitch)
 
     def test_freq_to_midinote(self):
-        self.assertTrue(utils.freq_to_midi_note(73.4161919794) == 38)
-        self.assertTrue(utils.freq_to_midi_note(8.1757989156) == 0)
-        self.assertTrue(utils.freq_to_midi_note(8.6619572180) == 1)
-        self.assertTrue(utils.freq_to_midi_note(10.9133822323) == 5)
-        self.assertTrue(utils.freq_to_midi_note(2793.8258514640) == 101)
-        self.assertTrue(utils.freq_to_midi_note(8.66) == 1)
-        self.assertTrue(utils.freq_to_midi_note(110) == 45)
+        for freq, midi, pitch, octave in self.semitones:
+            calc_midi = utils.freq_to_midi_note(freq)
+            self.assertTrue(midi == calc_midi)
 
     def test_midinote_to_freq(self):
-        self.assertTrue(round(utils.midinote_to_freq(38), 2) == 73.42)
-        # self.assertTrue(round(utils.midinote_to_freq(0), 2) == 8.18)
-        self.assertTrue(round(utils.midinote_to_freq(1), 2) == 8.66)
-        self.assertTrue(round(utils.midinote_to_freq(5), 2) == 10.91)
-        self.assertTrue(round(utils.midinote_to_freq(101), 2) == 2793.83)
-        self.assertTrue(round(utils.midinote_to_freq(45), 2) == 110)
+        for freq, midi, pitch, octave in self.semitones:
+            calc_freq = round(utils.midinote_to_freq(midi), 2)
+            self.assertTrue(calc_freq == freq)
 
     def test_freq_to_pc(self):
-        self.assertTrue(utils.freq_to_pc(8.66, False) == 'cs')
-        self.assertTrue(utils.freq_to_pc(440, True) == 'a4')
+        for freq, midi, pitch, octave in self.semitones:
+            pitch_w_octave = f"{pitch}{octave}"
+            calc_pitch_w_octave = utils.freq_to_pc(freq, True)
+            self.assertTrue(pitch_w_octave == calc_pitch_w_octave)
+
+            calc_pitch = utils.freq_to_pc(freq, False)
+            self.assertTrue(pitch == calc_pitch)
 
     def test_pc_to_freq(self):
-        self.assertTrue(round(utils.pc_to_freq('a4', 4)['value'], 2) == 440.0)
-        self.assertTrue(round(utils.pc_to_freq('a4', 1)['value'], 2) == 440.0)
-        self.assertTrue(round(utils.pc_to_freq('a6', 1)['value'], 2) == 1760.0)
+        for freq, midi, pitch, octave in self.semitones:
+            pitch_w_octave = f"{pitch}{octave}"
+            for default in (octave, octave+1):  # test with wrong default octave
+                calc = utils.pc_to_freq(pitch_w_octave, default)
+                calc_freq = round(calc['value'], 2)
+                self.assertTrue(freq == calc_freq)
 
 if __name__ == '__main__':
     unittest.main()
