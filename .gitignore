@@ -1,11 +1,71 @@
-.DS_Store
-.idea/
-composition/*.pyc
-composition/__pycache__/
-dac0.eps
-*.sco
-*.pyc
-tests/*.sco
-PyComposition.egg-info/
+# Python Cached and Compiled Files
+*.py[cod]
+*$py.class
+**/__pycache__
+*.so
+.Python
+
+# Detritus from various Python build systems
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.pybuilder/
+target/
+__pypackages__/
+
+# Detritus from various Python testing systems
+cover/
+*.cover
+*.py,cover
+htmlcov/
+.hypothesis/
+.nox/
+.tox/
+.cache
+coverage.xml
+.coverage
+.coverage.*
+nosetests.xml
+.pytest_cache/
+
+# Detritus from various virtualenv systems
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Dev Environment Issues
+# Dev - MacOS X
+.DS_Store
+
+# Developer Editor Detritus
+.idea/
+*.swp
+
+# Dev - TotalRecovery Application
+*.sco
+
+# Dev - reference image that doesn't belong in git
+dac0.eps
+
