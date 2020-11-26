@@ -1,6 +1,27 @@
 import math
 from collections import OrderedDict
 
+
+# Some Maths Utilities
+def cycle(index:int, scale:int=12):
+    """
+    Conforms an integer to a particular scale (usually the 12-point midi scale), wrapping the
+    number back around when it gets too high or too low.
+
+    For example, on a scale of 0-11 (the 12-point scale), a -1 becomes an 11, a -2 becomes a 10,
+    and so on; and a 12 becomes 0, 13 becomes 1, and so on.
+    """
+    while index < 0:
+        index += scale  # wrap negative numbers
+    return index % scale  # wrap high numbers
+
+
+def round_half_down(value:float) -> int:
+    """Rounds a floating-point number, with an 0.5 always rounding down."""
+    return math.ceil(value - 0.5)
+
+
+# Conversion Utilities
 pc_spec = list("cxdxefxgxaxb")
 
 
