@@ -62,7 +62,9 @@ def pc_to_freq(pc, default_octave):
     midinote = int(pc_spec.index(pc[0]))
 
     if pc[len(pc)-1].isdigit():
-            octave = int(pc[len(pc)-1])
+        octave = int(pc[len(pc)-1])
+        if len(pc)>2 and pc[-2] == '-':
+            octave = 0 - octave
 
     midinote += 12*(octave+1)
 

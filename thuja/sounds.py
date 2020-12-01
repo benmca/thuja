@@ -148,7 +148,7 @@ class PitchClass:
     @staticmethod
     def from_frequency(frequency:float):
         """Converts a frequency in Hertz to a pitch class."""
-        return MidiNote.from_frequency(frequency).pitch_class
+        return PitchClass(MidiNote.from_frequency(frequency).to_pitch_class())
 
     @staticmethod
     def from_midi_note(note:int):
@@ -158,7 +158,7 @@ class PitchClass:
         pitch class spec - [note name][s|f|n][octave]
         examples: b4, c#5, a♭8, a𝄫3
         """
-        return MidiNote(note).pitch_class
+        return PitchClass(MidiNote(note).to_pitch_class())
 
     def to_midi_note(self):
         """
@@ -178,7 +178,7 @@ class PitchClass:
     # properties
     @property
     def frequency(self) -> float:
-        return self.midi.frequency
+        return MidiNote(self.to_midi_note()).frequency
 
     @property
     def octave(self) -> int:
