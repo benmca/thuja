@@ -7,6 +7,7 @@ from thuja import utils
 from collections import OrderedDict
 import copy
 import funcsigs
+import socket
 
 
 class StreamKey:
@@ -306,6 +307,14 @@ class Generator:
         for x in range(len(self.end_lines)):
             retstring += self.end_lines[x]
         return retstring
+
+    def send_gens_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT = 8088):
+        for x in range(len(self.gen_lines)):
+            sock.sendto(("&" + self.gen_lines[x]).encode(), (UDP_IP, UDP_PORT))
+
+    def send_notes_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT = 8088):
+        for x in range(len(self.notes)):
+            sock.sendto(("&" + self.notes[x]).encode(), (UDP_IP, UDP_PORT))
 
     def tempo(self):
         return self.streams[keys.rhythm].tempo
