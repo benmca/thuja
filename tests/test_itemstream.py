@@ -1,7 +1,9 @@
 import unittest
-from thuja.itemstream import Itemstream
-from thuja.generator import keys
+from thuja.itemstream import *
+from thuja.generator import *
 import numpy as np
+
+
 class TestItemstreams(unittest.TestCase):
     def test_mappings(self):
         rhythms = 'h h w h h h'.split()
@@ -42,136 +44,82 @@ class TestItemstreams(unittest.TestCase):
             {keys.rhythm: "q", keys.index: .769, keys.amplitude: 1}
         ])
 
-    # TODO  fix these?
-    #
-    # def test_basiccase(self):
-    #     rhythms = Itemstream(['q'], 'sequence', tempo=[120, 60, 30])
-    #     rhythms.notetype = 'rhythm'
-    #     amps = Itemstream([1])
-    #
-    #     pitches = Itemstream(sum([
-    #         ['c4', 'c', 'c', 'd', 'c5', 'c', 'c', 'd'],
-    #     ], []))
-    #     pitches.notetype = 'pitch'
-    #     global_score.reinit(rhythms, [amps, pitches], note_limit=(len(pitches.values) * 2))
-    #     global_score.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-    #                    'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-    #     global_score.durstream = Itemstream([.1])
-    #     global_score.instr = 3
-    #     global_score.generate_notes()
-    #
-    #     output = ""
-    #     for x in range(len(s.gen_lines)):
-    #         output += global_score.gen_lines[x]
-    #     for x in range(len(s.notes)):
-    #         output += global_score.notes[x]
-    #
-    #     rhythms = Itemstream(['e'] * 12, 'sequence', tempo=[120, 60, 30])
-    #     rhythms.notetype = 'rhythm'
-    #     global_score.rhythmstream = rhythms
-    #     pitches = Itemstream(sum([
-    #         ['fs6'],
-    #     ], []))
-    #     pitches.notetype = 'pitch'
-    #     global_score.streams[1] = pitches
-    #     global_score.note_limit = 32
-    #     # reset time
-    #     global_score.starttime = 0.0
-    #     global_score.curtime = s.starttime
-    #     global_score.instr = 3
-    #     global_score.generate_notes()
-    #     for x in range(len(global_score.notes)):
-    #         output += global_score.notes[x]
-    #     score  = global_score.generate_score_string()
-    #     self.assertTrue(score is not None)
-    #     self.assertTrue(len(score.split('\n')) == 54)
-    #
-    # def test_tempo(self):
-    #
-    #     rhythms = Itemstream(['e'] * 60, 'sequence',
-    #                          tempo=np.linspace(120, 480, 32).tolist() + np.linspace(480, 120, 32).tolist())
-    #     rhythms.notetype = 'rhythm'
-    #     amps = Itemstream([3])
-    #     pitches = Itemstream(sum([
-    #         ['c4', 'd', 'e', 'f', 'g'],
-    #     ], []))
-    #     # pitches.streammode = 'heap'
-    #     pitches.notetype = 'pitch'
-    #     pan = Itemstream([0])
-    #     dist = Itemstream([10])
-    #     pct = Itemstream([.1])
-    #
-    #     global_score.reinit(rhythms, [amps, pitches, pan, dist, pct], note_limit=240)
-    #     global_score.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-    #                    'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-    #     global_score.durstream = Itemstream([.1])
-    #     global_score.instr = 3
-    #     global_score.generate_notes()
-    #
-    #     global_score.rhythmstream.tempo = np.linspace(480, 30, 32).tolist() + np.linspace(30, 480, 32).tolist()
-    #     global_score.streams[2] = Itemstream([90])
-    #     global_score.generate_notes()
-    #
-    #     output = ""
-    #     for x in range(len(global_score.gen_lines)):
-    #         output += global_score.gen_lines[x]
-    #     for x in range(len(global_score.notes)):
-    #         output += global_score.notes[x]
-    #     global_score.end_lines = ['i99 0 ' + str(global_score.score_dur) + '\n']
-    #     score = global_score.generate_score_string()
-    #     self.assertTrue(score is not None)
-    #     self.assertTrue(len(score.split('\n')) == 487)
-    #
-    # def test_basiccase(self):
-    #     rhythms = Itemstream(['w h q e s'], 'heap', tempo=120)
-    #     rhythms.notetype = 'rhythm'
-    #     amps = Itemstream([1])
-    #
-    #     pitches = Itemstream(sum([
-    #         ['c4', 'c', 'c', 'd', 'c5', 'c', 'c', 'd'],
-    #     ], []))
-    #     pitches.notetype = 'pitch'
-    #     global_score.reinit(rhythms, [amps, pitches], note_limit=(len(pitches.values) * 2))
-    #     global_score.gen_lines = [';sine\n', 'f 1 0 16384 10 1\n', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0\n', ';pulse\n',
-    #                    'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-    #     global_score.durstream = Itemstream([.1])
-    #     global_score.instr = 3
-    #     global_score.generate_notes()
-    #
-    #     output = ""
-    #     for x in range(len(global_score.gen_lines)):
-    #         output += global_score.gen_lines[x]
-    #     for x in range(len(global_score.notes)):
-    #         output += global_score.notes[x]
-    #
-    #     rhythms = Itemstream(['e'] * 12, 'sequence', tempo=[120, 60, 30])
-    #     rhythms.notetype = 'rhythm'
-    #     global_score.rhythmstream = rhythms
-    #     pitches = Itemstream(sum([
-    #         ['fs6'],
-    #     ], []))
-    #     pitches.notetype = 'pitch'
-    #     global_score.streams[1] = pitches
-    #     global_score.note_limit = 32
-    #     # reset time
-    #     global_score.starttime = 0.0
-    #     global_score.curtime = global_score.starttime
-    #     global_score.instr = 3
-    #     global_score.generate_notes()
-    #     for x in range(len(global_score.notes)):
-    #         output += global_score.notes[x]
-    #     score = global_score.generate_score_string()
-    #     self.assertTrue(score is not None)
-    #     self.assertTrue(len(score.split('\n')) == 54)
+    def test_basiccase(self):
+        pitches = Itemstream(['c4', 'c', 'c', 'd', 'c5', 'c', 'c', 'd'], notetype=notetypes.pitch)
+        g = Generator(
+            streams=[
+                (keys.instrument, 1),
+                (keys.rhythm, Itemstream(['q'], 'sequence', tempo=[120, 60, 30], notetype=notetypes.rhythm)),
+                (keys.duration, .1),
+                (keys.amplitude, 1),
+                (keys.frequency, pitches),
+            ],
+            note_limit=(16),
+            gen_lines=[';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
+        )
+        g.generate_notes()
 
+        output = ""
+        for x in range(len(g.gen_lines)):
+            output += (g.gen_lines[x] + '\n')
+        for x in range(len(g.notes)):
+            output += g.notes[x]
 
+        rhythms = Itemstream(['e'] * 12, 'sequence', tempo=[120, 60, 30], notetype=notetypes.rhythm)
+        g.streams[keys.rhythm] = rhythms
+        pitches = Itemstream(['fs6'], notetype=notetypes.pitch)
+        g.streams[keys.frequency] = pitches
+        g.note_limit = 32
 
-    # def test_basiccase(self):
-    #     rhythms = Itemstream('w h q e s'.split(), 'random', tempo=120)
-    #     rhythms.set_seed(101)
-    #
-    #     l = list(map(lambda x: rhythms.get_next_value(), range(5)))
-    #     return
+        # reset time
+        g.starttime = 0.0
+        g.curtime = g.starttime
+        g.instr = 3
+        g.generate_notes()
+
+        for x in range(len(g.notes)):
+            output += g.notes[x]
+
+        score = g.generate_score_string()
+        # score should generate 54 lines + 1
+        self.assertTrue((len(score.split('\n'))-1) == 54)
+        self.assertTrue((len(output.split('\n'))-1) == 70)
+
+    def test_tempo(self):
+        g = Generator(
+            streams=[
+                (keys.instrument, 3),
+                (keys.rhythm, Itemstream(['e'] * 60, 'sequence',
+                             tempo=np.linspace(120, 480, 32).tolist() + np.linspace(480, 120, 32).tolist(),
+                             notetype=notetypes.rhythm)),
+                (keys.duration, .1),
+                (keys.amplitude, 3),
+                (keys.frequency, Itemstream(['c4', 'd', 'e', 'f', 'g'], notetype=notetypes.pitch)),
+                (keys.pan, 0),
+                (keys.distance, 10),
+                (keys.percent, .1)
+            ],
+            note_limit=(240),
+            gen_lines=[';sine', 'f 1 0 16384 10 1', ';saw', 'f 2 0 256 7 0 128 1 0 -1 128 0', ';pulse',
+                       'f 3 0 256 7 1 128 1 0 -1 128 -1']
+        )
+        g.generate_notes()
+
+        g.streams[keys.rhythm].tempo = np.linspace(480, 30, 32).tolist() + np.linspace(30, 480, 32).tolist()
+        g.streams[keys.pan] = Itemstream([90])
+        g.generate_notes()
+
+        output = ""
+        for x in range(len(g.gen_lines)):
+            output += g.gen_lines[x]
+        for x in range(len(g.notes)):
+            output += g.notes[x]
+        g.end_lines = ['i99 0 ' + str(g.score_dur)]
+
+        score = g.generate_score_string()
+        self.assertTrue(len(score.split('\n')) == 488)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,8 +8,8 @@ import thuja.utils as utils
 from collections import OrderedDict
 import numpy as np
 
-rhythm = Itemstream('w h q e s e. w+q'.split())
-rhythm.notetype = 'rhythm'
+# rhythm = Itemstream('w h q e s e. w+q'.split())
+# rhythm.notetype = 'rhythm'
 
 
 class TestGenerators(unittest.TestCase):
@@ -239,10 +239,9 @@ class TestGenerators(unittest.TestCase):
         g.streams[keys.pan] = Itemstream([90])
         g.generate_notes()
 
-        g.end_lines = ['i99 0 ' + str(g.score_dur) + '\n']
+        g.end_lines = ['i99 0 ' + str(g.score_dur)]
 
         score = g.generate_score_string()
-        self.assertTrue(score is not None)
         self.assertTrue(len(score.split('\n')) == 488)
 
 
@@ -280,12 +279,9 @@ class TestGenerators(unittest.TestCase):
         g.streams[keys.rhythm].tempo = np.linspace(480, 30, 32).tolist() + np.linspace(30, 480, 32).tolist()
         g.streams[keys.pan] = 90
         g.generate_notes()
-
-
-        g.end_lines = ['i99 0 ' + str(g.score_dur) + '\n']
+        g.end_lines = ['i99 0 ' + str(g.score_dur)]
 
         score = g.generate_score_string()
-        self.assertTrue(score is not None)
         self.assertTrue(len(score.split('\n')) == 488)
 
 if __name__ == '__main__':

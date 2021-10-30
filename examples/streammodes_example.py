@@ -5,8 +5,8 @@ from thuja.generator import Generator
 from thuja.generator import keys
 from thuja import csound_utils
 
-rhythms = Itemstream("q q. e. s. h e+q 32",
-                     tempo=120,
+rhythms = Itemstream("q e. s s s s. 32",
+                     tempo=80,
                      notetype=notetypes.rhythm)
 
 pitches = Itemstream("c5 d e f g a b",
@@ -27,11 +27,13 @@ g = Generator(
 g.generate_notes()
 print('rhythms in sequence')
 csound_utils.play_csound("sine.orc", g, silent=True)
+g.clear_notes()
 
 g.streams[keys.rhythm].streammode = streammodes.heap
 g.generate_notes()
 print('rhythms in heap')
 csound_utils.play_csound("sine.orc", g, silent=True)
+g.clear_notes()
 
 g.streams[keys.rhythm].streammode = streammodes.random
 g.generate_notes()
