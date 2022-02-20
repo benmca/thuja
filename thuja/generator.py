@@ -8,7 +8,9 @@ from collections import OrderedDict
 import copy
 import funcsigs
 import socket
-
+import logging
+import threading
+import time
 
 class StreamKey:
     instrument = 'instr'
@@ -147,6 +149,7 @@ class Generator:
         self.context = init_context
         self.post_processes = post_processes
         self.generators = []
+        self.thread_started = False
 
     def with_streams(self, streams):
         if isinstance(streams, OrderedDict):
@@ -328,6 +331,27 @@ class Generator:
         for s in self.streams:
             if isinstance(s, Itemstream):
                 s.set_seed(seed)
+
+    def thread_function(self, cs):
+        format = "%(asctime)s: %(message)s"
+        logging.basicConfig(format=format, level=logging.INFO,
+                            datefmt="%H:%M:%S")
+        self.thread_started = True
+        scoreTime = 0
+        logging.info("thread starting")
+        while self.thread_started:
+            logging.info(".....top of while")
+            scoreTime = cs.scoreTime()
+            if scoreTime > self.cur_time:
+                logging.info(".....sending notes")
+                self.time_limit = scoreTime
+                self.generate_notes()
+                for note in self.notes:
+                    cs.inputMessage(str(note))
+                self.notes = []
+                self.cur_time = scoreTime
+                time.sleep(.1)
+        logging.info("thread ending")
 
 
 keys = StreamKey()
