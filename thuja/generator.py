@@ -12,6 +12,7 @@ import logging
 import threading
 import time
 
+
 class StreamKey:
     instrument = 'instr'
     start_time = 'start_time'
@@ -71,11 +72,11 @@ class BasicLine:
             ]
         )
         self.line.gen_lines = [';sine\n',
-                     'f 1 0 16384 10 1\n',
-                     ';saw',
-                     'f 2 0 256 7 0 128 1 0 -1 128 0\n',
-                     ';pulse\n',
-                     'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+                               'f 1 0 16384 10 1\n',
+                               ';saw',
+                               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+                               ';pulse\n',
+                               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
 
     def set_stream(self, k, v):
         if isinstance(v, Itemstream):
@@ -149,7 +150,6 @@ class Generator:
         self.context = init_context
         self.post_processes = post_processes
         self.generators = []
-        self.thread_started = False
 
     def with_streams(self, streams):
         if isinstance(streams, OrderedDict):
@@ -158,7 +158,6 @@ class Generator:
             pass
         else:
             self.streams = OrderedDict(streams)
-
 
     def with_pfields(self, pfields):
         self.pfields = pfields
@@ -216,8 +215,9 @@ class Generator:
         self.note_count = 0
         self.cur_time = self.start_time
         ret_lines = []
-
+        # todo - audit this, but looks like I intended note_limit to trump time_limit
         while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
+        # while (self.note_limit > 0 and (self.note_count < self.note_limit)) or ((self.time_limit > 0) and self.cur_time < self.time_limit):
             note = Event(pfields=self.pfields)
             note.pfields[keys.start_time] = self.cur_time
 
@@ -303,8 +303,8 @@ class Generator:
             self.generators.append(other)
 
     def add_bars_to_starttime(self, bars=1, beats=0, num=4, denom=4, tempo=120):
-        beat_duration = 60.0/tempo
-        self.start_time += (beat_duration*num*bars)+(beat_duration*beats)
+        beat_duration = 60.0 / tempo
+        self.start_time += (beat_duration * num * bars) + (beat_duration * beats)
 
     def generate_score_string(self):
         retstring = ""
@@ -316,11 +316,11 @@ class Generator:
             retstring += self.end_lines[x] + '\n'
         return retstring
 
-    def send_gens_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT = 8088):
+    def send_gens_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT=8088):
         for x in range(len(self.gen_lines)):
             sock.sendto(("&" + self.gen_lines[x]).encode(), (UDP_IP, UDP_PORT))
 
-    def send_notes_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT = 8088):
+    def send_notes_to_udp(self, sock, UDP_IP="127.0.0.1", UDP_PORT=8088):
         for x in range(len(self.notes)):
             sock.sendto(("&" + self.notes[x]).encode(), (UDP_IP, UDP_PORT))
 
@@ -332,26 +332,41 @@ class Generator:
             if isinstance(s, Itemstream):
                 s.set_seed(seed)
 
-    def thread_function(self, cs):
-        format = "%(asctime)s: %(message)s"
-        logging.basicConfig(format=format, level=logging.INFO,
-                            datefmt="%H:%M:%S")
-        self.thread_started = True
-        scoreTime = 0
-        logging.info("thread starting")
-        while self.thread_started:
-            logging.info(".....top of while")
-            scoreTime = cs.scoreTime()
-            if scoreTime > self.cur_time:
-                logging.info(".....sending notes")
-                self.time_limit = scoreTime
-                self.generate_notes()
-                for note in self.notes:
-                    cs.inputMessage(str(note))
-                self.notes = []
-                self.cur_time = scoreTime
-                time.sleep(.1)
-        logging.info("thread ending")
 
+class GeneratorThread(threading.Thread):
+
+    def __init__(self, g, cs, sleep_interval=.1):
+        self.g = g
+        self.cs = cs
+        self.sleep_interval = sleep_interval
+        self.stop_event = threading.Event()
+        threading.Thread.__init__(self)
+        return
+
+    def run(self):
+        g = self.g
+        cs = self.cs
+        sleep_interval = self.sleep_interval
+        g.thread_started = True
+        g.cur_time = 0
+
+        # automatically generate notes if not already generated
+        if g.notes is None or len(g.notes) < 1:
+            g.generate_notes()
+
+        while not self.stop_event.is_set():
+            score_time = cs.scoreTime()
+            if score_time > g.cur_time:
+                g.time_limit = score_time
+                print(str(g.cur_time) + " - " + str(score_time))
+                # g.generate_notes(g.cur_time)
+                for note in g.notes:
+                    # continue if note is not in window between cur time or score time + sleep interval?
+                    cs.inputMessage(str(note))
+                    print(str(note))
+                g.notes = []
+                time.sleep(sleep_interval)
+
+        self.stop_event.clear()
 
 keys = StreamKey()
