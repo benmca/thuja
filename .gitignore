@@ -69,3 +69,6 @@ venv.bak/
 # Dev - reference image that doesn't belong in git
 dac0.eps
 
+# additions from venv
+pyvenv.cfg
+bin/
