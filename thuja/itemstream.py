@@ -65,8 +65,11 @@ class Itemstream:
         # if string, assume it's space-delimited items when creating item-streams
         if values and isinstance(values, str):
             self.values = values.split()
-        else:
+        if values and isinstance(values, list):
             self.values = values
+        else:
+            # assume this is an atomic item - single item stream.
+            self.values = [values]
         self.index = 0
         self.streammode = streammode
         self.notetype = notetype

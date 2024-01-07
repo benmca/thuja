@@ -245,9 +245,9 @@ def rhythm_to_duration(rhythm_string, tempo):
             if s[0] != '' and s[0] in multipliers.keys():
                 val = (dur_of_quarter * multipliers[s[0]])
                 if s.find("..") != -1:
-                    val = val*.25
+                    val = val*1.25
                 elif s.find('.') != -1:
-                    val = val*.5
+                    val = val*1.5
             elif s.isdigit():
                 whole = (dur_of_quarter * 4)
                 mult = (1.0 / int(s))

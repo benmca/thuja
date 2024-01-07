@@ -19,11 +19,10 @@ Thuja is built on a two simple classes that deliver a ton of flexibility in comp
 
 In Csound, notes have at a minimum an instrument, start time, and duration as their first 3 p-fields, but can have any number of additional parameters as required by an instrument. Here, we have p4 describing amplitude, and p5 describing frequency. 
 
-```
-#instr	start	dur		amp		freq
-#p1		p2		p3		p4		p5
-i3      0.0 	0.1		1 		440
-```
+	instr    start    dur    amp    freq
+	p1       p2       p3     p4     p5
+	i3       0.0      0.1    1      440
+
 In Thuja, **Itemstreams** define sequences of p-field values as notes are generated. They can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them, etc. 
 
 from thuja
@@ -60,8 +59,6 @@ Define a string of pitches using pitch-class notation. Chords are nested lists. 
 	)
 
 Define a Generator which will generate notes like so: 
-
-```
 #instr	start	dur		amp		freq	pan		distance	percent
 #p1		p2		p3		p4		p5		p6		p7			p8	
 i1      0.0 	0.1		1 		440		45		10			.1

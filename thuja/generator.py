@@ -50,7 +50,7 @@ class StreamKey:
 class BasicLine:
 
     def __init__(self):
-        self.line = Generator(
+        self.gen = Generator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, lambda note: note.pfields['orig_rhythm']),
@@ -71,7 +71,7 @@ class BasicLine:
                 keys.percent
             ]
         )
-        self.line.gen_lines = [';sine\n',
+        self.gen.gen_lines = [';sine\n',
                                'f 1 0 16384 10 1\n',
                                ';saw',
                                'f 2 0 256 7 0 128 1 0 -1 128 0\n',
@@ -80,37 +80,82 @@ class BasicLine:
 
     def set_stream(self, k, v):
         if isinstance(v, Itemstream):
-            self.line.streams[k] = v
+            self.gen.streams[k] = v
         elif isinstance(v, str):
-            self.line.streams[k] = Itemstream(v.split())
+            self.gen.streams[k] = Itemstream(v.split())
         elif isinstance(v, list):
-            self.line.streams[k] = Itemstream(v)
+            self.gen.streams[k] = Itemstream(v)
+        else:
+            # assume this is an single item string and pass value through to ItemStream
+            self.gen.streams[k] = Itemstream(v)
 
     def with_rhythm(self, v):
-        if isinstance(v, str) or isinstance(v, list):
-            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().rhythm))
-        else:
-            self.set_stream(StreamKey().frequency, v)
+        self.rhythms(v)
         return self
+
+    # for brevity, pfield setters
+    def rhythms(self, v):
+        if isinstance(v, str) or isinstance(v, list):
+            self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=Notetypes().rhythm))
+        else:
+            self.set_stream(StreamKey().rhythm, v)
 
     def with_duration(self, v):
-        self.set_stream(StreamKey().duration, v)
+        self.durs(v)
         return self
+
+    def durs(self, v):
+        self.set_stream(StreamKey().duration, v)
 
     def with_amps(self, v):
-        self.set_stream(StreamKey().amplitude, v)
+        self.amps(v)
         return self
 
-    def with_frequencies(self, v):
-        self.set_stream(StreamKey().frequency, v)
-        return self
+    def amps(self, v):
+        self.set_stream(StreamKey().amplitude, v)
 
     def with_pitches(self, v):
+        self.pitches(v)
+        return self
+
+    def pitches(self, v):
         if isinstance(v, str):
             self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
         else:
             self.set_stream(StreamKey().frequency, v)
+
+    def with_freqs(self, v):
+        self.freqs(v)
         return self
+
+    def freqs(self, v):
+        self.set_stream(StreamKey().frequency, v)
+
+    def with_pan(self, v):
+        self.pan(v)
+        return self
+
+    def pan(self, v):
+        self.set_stream(StreamKey().pan, v)
+
+    def with_dist(self, v):
+        self.dist(v)
+        return self
+
+    def dist(self, v):
+        self.set_stream(StreamKey().distance, v)
+
+    def with_percent(self, v):
+        self.pct(v)
+        return self
+
+    def pct(self, v):
+        self.set_stream(StreamKey().percent, v)
+
+
+
+
+
 
 
 class Generator:
