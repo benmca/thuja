@@ -174,6 +174,7 @@ class Itemstream:
         elif isinstance(self.values[self.index], Itemstream):
             self.is_chording = False
             # nested stream case
+            # todo - work through nested itemstream until 'complete' then move ahead to next item.
             pass
         else:
             self.is_chording = False

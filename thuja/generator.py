@@ -85,6 +85,9 @@ class BasicLine:
             self.gen.streams[k] = Itemstream(v.split())
         elif isinstance(v, list):
             self.gen.streams[k] = Itemstream(v)
+        elif callable(v):
+            self.gen.streams[k] = v
+
         else:
             # assume this is an single item string and pass value through to ItemStream
             self.gen.streams[k] = Itemstream(v)
@@ -296,23 +299,28 @@ class Generator:
                     if self.streams[key].is_chording:
                         note_is_chording = True
 
-            for item in self.post_processes:
-                if callable(item):
-                    if len(funcsigs.signature(item).parameters) > 1:
-                        item(note, self.context)
-                    else:
-                        item(note)
-
             if not note_is_chording:
                 if rhythm is not None:
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
                 elif note.rhythm is not None:
                     self.cur_time = self.cur_time + note.rhythm
-                else:
+                elif keys.rhythm in self.streams and self.streams[keys.rhythm] is not None:
+                    # 2024.01.31 added this clause instead of this being the default.
+                    #   test_generator was tripping here. A todo might be to be prescriptive in checking that - if
+                    #   if rhy isn't set in post_processes OR here, we should error out.
                     rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
+
+            # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
+            #   did I think we would want to do post-processing BEFORE curtime is set or something?
+            for item in self.post_processes:
+                if callable(item):
+                    if len(funcsigs.signature(item).parameters) > 1:
+                        item(note, self.context)
+                    else:
+                        item(note)
 
             # after setting primitives and ItemStream-driven values, evaluate functions
             for key in self.streams.keys():
