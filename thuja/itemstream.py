@@ -110,8 +110,11 @@ class Itemstream:
                 self.values.append(item)
 
     def set_seed(self, seed):
-        self.seed = seed
         self.rand = random.Random()
+        if seed is None:
+            self.seed = self.rand.random()
+        else:
+            self.seed = seed
         self.rand.seed(self.seed)
 
     def get_next_value(self):

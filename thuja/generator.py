@@ -1,6 +1,9 @@
+import random
+import sys
+
 from thuja.itemstream import Itemstream
 from thuja.itemstream import Streammodes
-from thuja.itemstream import Notetypes
+from thuja.itemstream import notetypes
 
 from thuja.event import Event
 from thuja import utils
@@ -53,7 +56,8 @@ class BasicLine:
         self.gen = Generator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
-                (keys.duration, lambda note: note.pfields['orig_rhythm']),
+                (keys.duration, Itemstream([1])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
                 (keys.amplitude, Itemstream([1])),
                 (keys.frequency, Itemstream([1])),
                 (keys.pan, Itemstream([45])),
@@ -77,6 +81,8 @@ class BasicLine:
                                'f 2 0 256 7 0 128 1 0 -1 128 0\n',
                                ';pulse\n',
                                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        self.gen.note_limit = 1
+
 
     def set_stream(self, k, v):
         if isinstance(v, Itemstream):
@@ -97,11 +103,16 @@ class BasicLine:
         return self
 
     # for brevity, pfield setters
+    # 2024.05.27: for rhythms, I added this safeguard since I seem to forget to set all the things for rhythms to
+    #   be generated as I work through the fluent interface.
     def rhythms(self, v):
         if isinstance(v, str) or isinstance(v, list):
-            self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=Notetypes().rhythm))
-        else:
+            self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=notetypes.rhythm))
+        elif isinstance(v, Itemstream):
+            v.notetype = notetypes.rhythm
             self.set_stream(StreamKey().rhythm, v)
+        else:
+            raise Exception("rhythm not set - supply ItemStream, string, or list")
 
     def with_duration(self, v):
         self.durs(v)
@@ -155,10 +166,27 @@ class BasicLine:
     def pct(self, v):
         self.set_stream(StreamKey().percent, v)
 
+    def randomize(self):
+        seed = random.Random().randint(0, sys.maxsize)
+        self.gen.set_streams_to_seed(seed)
+        print(str(seed))
+        return self
+
+    def with_index(self, v):
+        self.index(v)
+        return self
+
+    def index(self, v):
+        self.set_stream(StreamKey().index, v)
 
 
-
-
+    def setup_index_params_with_file(self, filename):
+        self.set_stream('orig_rhythm', .01)
+        self.set_stream('inst_file', ['\"' + filename + '\"'])
+        self.set_stream('fade_in', .0001)
+        self.set_stream('fade_out', .01)
+        self.gen.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
+        return self
 
 
 class Generator:
@@ -381,7 +409,7 @@ class Generator:
         return self.streams[keys.rhythm].tempo
 
     def set_streams_to_seed(self, seed):
-        for s in self.streams:
+        for s in self.streams.values():
             if isinstance(s, Itemstream):
                 s.set_seed(seed)
 
