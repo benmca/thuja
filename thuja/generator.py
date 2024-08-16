@@ -114,6 +114,13 @@ class BasicLine:
         else:
             raise Exception("rhythm not set - supply ItemStream, string, or list")
 
+    def with_tempo(self, x):
+        self.tempo(x)
+        return self
+
+    def tempo(self, x):
+        self.gen.streams[keys.rhythm].tempo = x
+
     def with_duration(self, v):
         self.durs(v)
         return self
@@ -133,10 +140,13 @@ class BasicLine:
         return self
 
     def pitches(self, v):
-        if isinstance(v, str):
+        if isinstance(v, str) or isinstance(v, list):
             self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
-        else:
+        elif isinstance(v, Itemstream):
+            v.notetype = notetypes.pitch
             self.set_stream(StreamKey().frequency, v)
+        else:
+            raise Exception("pitches not set - supply ItemStream, string, or list")
 
     def with_freqs(self, v):
         self.freqs(v)
