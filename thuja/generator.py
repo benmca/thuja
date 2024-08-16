@@ -17,6 +17,7 @@ import time
 
 
 class StreamKey:
+
     instrument = 'instr'
     start_time = 'start_time'
     duration = 'dur'
@@ -61,6 +62,20 @@ class Generator:
                  post_processes=[],
                  init_context={},
                  gen_lines=[]):
+        """
+        Initializes a Generator object.ˆ
+
+        Parameters:
+            note_limit (int): The maximum number of notes to generate. Defaults to 16.
+            start_time (float): The starting time of the generator. Defaults to 0.0.
+            streams (OrderedDict): A dictionary of streams. Defaults to None.
+            pfields (list): A list of parameter fields. Defaults to None.
+            post_processes (list): A list of post-processing functions to be applied after
+                generating notes. Defaults to an empty list.
+            init_context (dict): An initial context for the generator, designed to be leveraged by post_processes but
+                can be referenced wherever. Defaults to an empty dictionary.
+            gen_lines (list): A list of strings (csound score events) to append to generated score string. Defaults to an empty list.
+        """
 
         self.start_time = start_time
         self.streams = None
@@ -336,7 +351,8 @@ class BasicLine(Generator):
         if isinstance(v, str) or isinstance(v, list):
             self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=notetypes.rhythm))
         elif isinstance(v, Itemstream):
-            v.notetype = notetypes.rhythm
+            # don't assume this is notetypes==rhythm - this could be numbers
+            # v.notetype = notetypes.rhythm
             self.set_stream(StreamKey().rhythm, v)
         else:
             raise Exception("rhythm not set - supply ItemStream, string, or list")

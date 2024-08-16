@@ -2,6 +2,10 @@ from collections import OrderedDict
 
 
 class Event:
+    """
+    This little primitive is the Note in Thuja - it contains the pfield dictionary and
+    provides access to rhythm and string representation for csound score export.
+    """
     # ----------------------------------------------------------------------
     def __init__(self, pfields=None):
         """Constructor"""
