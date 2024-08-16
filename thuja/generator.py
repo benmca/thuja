@@ -50,153 +50,6 @@ class StreamKey:
         self.percent = 'pct'
 
 
-class BasicLine:
-
-    def __init__(self):
-        self.gen = Generator(
-            streams=OrderedDict([
-                (keys.instrument, Itemstream([1])),
-                (keys.duration, Itemstream([1])),
-                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
-                (keys.amplitude, Itemstream([1])),
-                (keys.frequency, Itemstream([1])),
-                (keys.pan, Itemstream([45])),
-                (keys.distance, Itemstream([10])),
-                (keys.percent, Itemstream([.01]))
-            ]),
-            pfields=[
-                keys.instrument,
-                keys.start_time,
-                keys.duration,
-                keys.amplitude,
-                keys.frequency,
-                keys.pan,
-                keys.distance,
-                keys.percent
-            ]
-        )
-        self.gen.gen_lines = [';sine\n',
-                               'f 1 0 16384 10 1\n',
-                               ';saw',
-                               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
-                               ';pulse\n',
-                               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-        self.gen.note_limit = 1
-
-
-    def set_stream(self, k, v):
-        if isinstance(v, Itemstream):
-            self.gen.streams[k] = v
-        elif isinstance(v, str):
-            self.gen.streams[k] = Itemstream(v.split())
-        elif isinstance(v, list):
-            self.gen.streams[k] = Itemstream(v)
-        elif callable(v):
-            self.gen.streams[k] = v
-
-        else:
-            # assume this is an single item string and pass value through to ItemStream
-            self.gen.streams[k] = Itemstream(v)
-
-    def with_rhythm(self, v):
-        self.rhythms(v)
-        return self
-
-    # for brevity, pfield setters
-    # 2024.05.27: for rhythms, I added this safeguard since I seem to forget to set all the things for rhythms to
-    #   be generated as I work through the fluent interface.
-    def rhythms(self, v):
-        if isinstance(v, str) or isinstance(v, list):
-            self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=notetypes.rhythm))
-        elif isinstance(v, Itemstream):
-            v.notetype = notetypes.rhythm
-            self.set_stream(StreamKey().rhythm, v)
-        else:
-            raise Exception("rhythm not set - supply ItemStream, string, or list")
-
-    def with_tempo(self, x):
-        self.tempo(x)
-        return self
-
-    def tempo(self, x):
-        self.gen.streams[keys.rhythm].tempo = x
-
-    def with_duration(self, v):
-        self.durs(v)
-        return self
-
-    def durs(self, v):
-        self.set_stream(StreamKey().duration, v)
-
-    def with_amps(self, v):
-        self.amps(v)
-        return self
-
-    def amps(self, v):
-        self.set_stream(StreamKey().amplitude, v)
-
-    def with_pitches(self, v):
-        self.pitches(v)
-        return self
-
-    def pitches(self, v):
-        if isinstance(v, str) or isinstance(v, list):
-            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
-        elif isinstance(v, Itemstream):
-            v.notetype = notetypes.pitch
-            self.set_stream(StreamKey().frequency, v)
-        else:
-            raise Exception("pitches not set - supply ItemStream, string, or list")
-
-    def with_freqs(self, v):
-        self.freqs(v)
-        return self
-
-    def freqs(self, v):
-        self.set_stream(StreamKey().frequency, v)
-
-    def with_pan(self, v):
-        self.pan(v)
-        return self
-
-    def pan(self, v):
-        self.set_stream(StreamKey().pan, v)
-
-    def with_dist(self, v):
-        self.dist(v)
-        return self
-
-    def dist(self, v):
-        self.set_stream(StreamKey().distance, v)
-
-    def with_percent(self, v):
-        self.pct(v)
-        return self
-
-    def pct(self, v):
-        self.set_stream(StreamKey().percent, v)
-
-    def randomize(self):
-        seed = random.Random().randint(0, sys.maxsize)
-        self.gen.set_streams_to_seed(seed)
-        print(str(seed))
-        return self
-
-    def with_index(self, v):
-        self.index(v)
-        return self
-
-    def index(self, v):
-        self.set_stream(StreamKey().index, v)
-
-
-    def setup_index_params_with_file(self, filename):
-        self.set_stream('orig_rhythm', .01)
-        self.set_stream('inst_file', ['\"' + filename + '\"'])
-        self.set_stream('fade_in', .0001)
-        self.set_stream('fade_out', .01)
-        self.gen.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
-        return self
 
 
 class Generator:
@@ -422,6 +275,156 @@ class Generator:
         for s in self.streams.values():
             if isinstance(s, Itemstream):
                 s.set_seed(seed)
+
+
+class BasicLine(Generator):
+
+    def __init__(self):
+        Generator.__init__(self)
+        self.streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([1])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            (keys.amplitude, Itemstream([1])),
+            (keys.frequency, Itemstream([1])),
+            (keys.pan, Itemstream([45])),
+            (keys.distance, Itemstream([10])),
+            (keys.percent, Itemstream([.01]))
+        ])
+        self.pfields=[
+            keys.instrument,
+            keys.start_time,
+            keys.duration,
+            keys.amplitude,
+            keys.frequency,
+            keys.pan,
+            keys.distance,
+            keys.percent
+        ]
+
+        self.gen_lines = [';sine\n',
+                               'f 1 0 16384 10 1\n',
+                               ';saw',
+                               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+                               ';pulse\n',
+                               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+        self.note_limit = 1
+
+
+    def set_stream(self, k, v):
+        if isinstance(v, Itemstream):
+            self.streams[k] = v
+        elif isinstance(v, str):
+            self.streams[k] = Itemstream(v.split())
+        elif isinstance(v, list):
+            self.streams[k] = Itemstream(v)
+        elif callable(v):
+            self.streams[k] = v
+
+        else:
+            # assume this is an single item string and pass value through to ItemStream
+            self.streams[k] = Itemstream(v)
+
+    def with_rhythm(self, v):
+        self.rhythms(v)
+        return self
+
+    # for brevity, pfield setters
+    # 2024.05.27: for rhythms, I added this safeguard since I seem to forget to set all the things for rhythms to
+    #   be generated as I work through the fluent interface.
+    def rhythms(self, v):
+        if isinstance(v, str) or isinstance(v, list):
+            self.set_stream(StreamKey().rhythm, Itemstream(v, notetype=notetypes.rhythm))
+        elif isinstance(v, Itemstream):
+            v.notetype = notetypes.rhythm
+            self.set_stream(StreamKey().rhythm, v)
+        else:
+            raise Exception("rhythm not set - supply ItemStream, string, or list")
+
+    def with_tempo(self, x):
+        self.tempo(x)
+        return self
+
+    def tempo(self, x):
+        self.streams[keys.rhythm].tempo = x
+
+    def with_duration(self, v):
+        self.durs(v)
+        return self
+
+    def durs(self, v):
+        self.set_stream(StreamKey().duration, v)
+
+    def with_amps(self, v):
+        self.amps(v)
+        return self
+
+    def amps(self, v):
+        self.set_stream(StreamKey().amplitude, v)
+
+    def with_pitches(self, v):
+        self.pitches(v)
+        return self
+
+    def pitches(self, v):
+        if isinstance(v, str) or isinstance(v, list):
+            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
+        elif isinstance(v, Itemstream):
+            v.notetype = notetypes.pitch
+            self.set_stream(StreamKey().frequency, v)
+        else:
+            raise Exception("pitches not set - supply ItemStream, string, or list")
+
+    def with_freqs(self, v):
+        self.freqs(v)
+        return self
+
+    def freqs(self, v):
+        self.set_stream(StreamKey().frequency, v)
+
+    def with_pan(self, v):
+        self.pan(v)
+        return self
+
+    def pan(self, v):
+        self.set_stream(StreamKey().pan, v)
+
+    def with_dist(self, v):
+        self.dist(v)
+        return self
+
+    def dist(self, v):
+        self.set_stream(StreamKey().distance, v)
+
+    def with_percent(self, v):
+        self.pct(v)
+        return self
+
+    def pct(self, v):
+        self.set_stream(StreamKey().percent, v)
+
+    def randomize(self):
+        seed = random.Random().randint(0, sys.maxsize)
+        self.set_streams_to_seed(seed)
+        print(str(seed))
+        return self
+
+    def with_index(self, v):
+        self.index(v)
+        return self
+
+    def index(self, v):
+        self.set_stream(StreamKey().index, v)
+
+
+    def setup_index_params_with_file(self, filename):
+        self.set_stream('orig_rhythm', .01)
+        self.set_stream('inst_file', ['\"' + filename + '\"'])
+        self.set_stream('fade_in', .0001)
+        self.set_stream('fade_out', .01)
+        self.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
+        return self
+
 
 
 class GeneratorThread(threading.Thread):
