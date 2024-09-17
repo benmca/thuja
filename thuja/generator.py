@@ -169,6 +169,7 @@ class Generator:
         self.note_count = 0
         self.cur_time = self.start_time
         ret_lines = []
+        self.notes = []
         # todo - audit this, but looks like I intended note_limit to trump time_limit
         while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
         # while (self.note_limit > 0 and (self.note_count < self.note_limit)) or ((self.time_limit > 0) and self.cur_time < self.time_limit):
@@ -254,6 +255,9 @@ class Generator:
             self.notes.extend(g.notes)
             if g.score_dur > self.score_dur:
                 self.score_dur = g.score_dur
+
+        # sort by start time
+        self.notes.sort(key=lambda note:float(note.split()[1]))
 
         return self
 
@@ -441,42 +445,53 @@ class BasicLine(Generator):
         self.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
         return self
 
+    def g(self):
+        self.generate_notes()
+        return self
 
 
 class GeneratorThread(threading.Thread):
 
-    def __init__(self, g, cs, sleep_interval=.1):
+    def __init__(self, g, cs, cpt, sleep_interval=.01):
         self.g = g
         self.cs = cs
+        self.cpt = cpt
         self.sleep_interval = sleep_interval
         self.stop_event = threading.Event()
-        threading.Thread.__init__(self)
+        self.thread = threading.Thread.__init__(self)
         return
 
     def run(self):
         g = self.g
         cs = self.cs
+        cpt = self.cpt
         sleep_interval = self.sleep_interval
         g.thread_started = True
-        g.cur_time = 0
 
         # automatically generate notes if not already generated
-        if g.notes is None or len(g.notes) < 1:
-            g.generate_notes()
+        # if g.notes is None or len(g.notes) < 1:
+        #     g.generate_notes()
 
+        arbitrary_score_time = 0
         while not self.stop_event.is_set():
-            score_time = cs.scoreTime()
-            if score_time > g.cur_time:
-                g.time_limit = score_time
-                print(str(g.cur_time) + " - " + str(score_time))
-                # g.generate_notes(g.cur_time)
-                for note in g.notes:
-                    # continue if note is not in window between cur time or score time + sleep interval?
-                    cs.inputMessage(str(note))
-                    print(str(note))
-                g.notes = []
-                time.sleep(sleep_interval)
+            # score_time = cs.scoreTime()
+            # if arbitraty_score_time < g.time_limit:
+            # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
+
+            for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
+                # print(str(note) + " address")
+                n = note.split()
+                n[1] = '0.0'
+                new_note = '\t'.join(n)
+                cpt.inputMessage(new_note)
+
+            arbitrary_score_time = arbitrary_score_time + sleep_interval
+            time.sleep(sleep_interval)
 
         self.stop_event.clear()
+
+    def update_generator(self, g):
+        # self.thread.lock()
+        pass
 
 keys = StreamKey()
