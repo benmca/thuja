@@ -219,8 +219,20 @@ class Generator:
                     rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
+            else:
+                # 2025.03.12 Trying to set rhythm in chording scenarioes, so that post_processes or callables can refer to rhythm.
+                # ..adapted from Itemstream get next value - this should act as a
+                # if isinstance(self.streams[keys.rhythm].tempo, list):
+                #     note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index][self.streams[keys.rhythm].chording_index],
+                #                                    self.tempo[self.streams[keys.rhythm].note_count % len(self.tempo)])
+                # else:
+                if isinstance(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], list):
+                    print("in chording case, rhythm stream must be a flat list - current value is a list")
+                    assert False
+                note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], self.streams[keys.rhythm].tempo)
 
-            # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
+
+        # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
             #   did I think we would want to do post-processing BEFORE curtime is set or something?
             for item in self.post_processes:
                 if callable(item):
@@ -368,6 +380,12 @@ class BasicLine(Generator):
     def tempo(self, x):
         self.streams[keys.rhythm].tempo = x
 
+    def with_instr(self, v):
+        self.instr(v)
+        return self
+
+    def instr(self, v):
+        self.set_stream(StreamKey().instrument, v)
     def with_duration(self, v):
         self.durs(v)
         return self
@@ -479,7 +497,7 @@ class GeneratorThread(threading.Thread):
             # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
 
             for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
-                # print(str(note) + " address")
+                print(str(note))
                 n = note.split()
                 n[1] = '0.0'
                 new_note = '\t'.join(n)
