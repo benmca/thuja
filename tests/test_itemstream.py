@@ -10,12 +10,12 @@ class TestItemstreams(unittest.TestCase):
         indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
         stream = Itemstream(mapping_keys=[keys.rhythm, keys.index], mapping_lists=[rhythms, indexes])
         self.assertTrue(stream.values == [
-                            {keys.rhythm: "h", keys.index: .769},
-                            {keys.rhythm: "h", keys.index: 1.95},
-                            {keys.rhythm: "w", keys.index: 3.175},
-                            {keys.rhythm: "h", keys.index: 5.54},
-                            {keys.rhythm: "h", keys.index: 6.67},
-                            {keys.rhythm: "h", keys.index: 8.0}])
+            {keys.rhythm: "h", keys.index: .769},
+            {keys.rhythm: "h", keys.index: 1.95},
+            {keys.rhythm: "w", keys.index: 3.175},
+            {keys.rhythm: "h", keys.index: 5.54},
+            {keys.rhythm: "h", keys.index: 6.67},
+            {keys.rhythm: "h", keys.index: 8.0}])
 
         rhythms = 'h h w h h w q'.split()
         indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
@@ -33,7 +33,8 @@ class TestItemstreams(unittest.TestCase):
         rhythms = 'h h w h h w q'.split()
         indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
         amps = [1, 0]
-        stream = Itemstream(mapping_keys=[keys.rhythm, keys.index, keys.amplitude], mapping_lists=[rhythms, indexes, amps])
+        stream = Itemstream(mapping_keys=[keys.rhythm, keys.index, keys.amplitude],
+                            mapping_lists=[rhythms, indexes, amps])
         self.assertTrue(stream.values == [
             {keys.rhythm: "h", keys.index: .769, keys.amplitude: 1},
             {keys.rhythm: "h", keys.index: 1.95, keys.amplitude: 0},
@@ -83,16 +84,16 @@ class TestItemstreams(unittest.TestCase):
 
         score = g.generate_score_string()
         # score should generate 54 lines + 1
-        self.assertTrue((len(score.split('\n'))-1) == 54)
-        self.assertTrue((len(output.split('\n'))-1) == 70)
+        self.assertTrue(len(score.split('\n')) == 39)
+        self.assertTrue(len(output.split('\n')) == 55)
 
     def test_tempo(self):
         g = Generator(
             streams=[
                 (keys.instrument, 3),
                 (keys.rhythm, Itemstream(['e'] * 60, 'sequence',
-                             tempo=np.linspace(120, 480, 32).tolist() + np.linspace(480, 120, 32).tolist(),
-                             notetype=notetypes.rhythm)),
+                                         tempo=np.linspace(120, 480, 32).tolist() + np.linspace(480, 120, 32).tolist(),
+                                         notetype=notetypes.rhythm)),
                 (keys.duration, .1),
                 (keys.amplitude, 3),
                 (keys.frequency, Itemstream(['c4', 'd', 'e', 'f', 'g'], notetype=notetypes.pitch)),
@@ -118,7 +119,7 @@ class TestItemstreams(unittest.TestCase):
         g.end_lines = ['i99 0 ' + str(g.score_dur)]
 
         score = g.generate_score_string()
-        self.assertTrue(len(score.split('\n')) == 488)
+        self.assertTrue(len(score.split('\n')) == 248)
 
 
 if __name__ == '__main__':

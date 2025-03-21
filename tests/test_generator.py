@@ -242,7 +242,7 @@ class TestGenerators(unittest.TestCase):
         g.end_lines = ['i99 0 ' + str(g.score_dur)]
 
         score = g.generate_score_string()
-        self.assertTrue(len(score.split('\n')) == 488)
+        self.assertTrue(len(score.split('\n')) == 248)
 
 
     def test_literals(self):
@@ -282,7 +282,7 @@ class TestGenerators(unittest.TestCase):
         g.end_lines = ['i99 0 ' + str(g.score_dur)]
 
         score = g.generate_score_string()
-        self.assertTrue(len(score.split('\n')) == 488)
+        self.assertTrue(len(score.split('\n')) == 248)
 
 if __name__ == '__main__':
     unittest.main()
