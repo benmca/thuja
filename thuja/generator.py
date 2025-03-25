@@ -172,24 +172,46 @@ class Generator:
         self.notes = []
         # todo - audit this, but looks like I intended note_limit to trump time_limit
         while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
+        # we've got options - this condition says whichever one we get to first wins
         # while (self.note_limit > 0 and (self.note_count < self.note_limit)) or ((self.time_limit > 0) and self.cur_time < self.time_limit):
+
+
+            # # initialize_event_with_pfields
             note = Event(pfields=self.pfields)
             note.pfields[keys.start_time] = self.cur_time
 
-            # todo - validate we're ok to roll: we have at least an instr and rhythm
             note_is_chording = False
             rhythm = None
+
+            # # set note from streams
+
+            # for each key in the stream e.g. instr, dur, amp, freq, etc.
             for key in self.streams.keys():
+
+                # rhythm is a special case. We deal with this case below.
                 if key is keys.rhythm:
                     continue
-                # this could be a literal or ItemStream
+                # 2025.03.23 old comment: this could be a literal or ItemStream
+                # 2025.03.23 Streams are either ItemStreams, callables (lambdas, i.e. dur = .5*rhythm) or string or float literals
+                #   todo: validate that you aren't breaking this in BasicLine initialization from a literal. It simplifies to
+                #       make everything either an itemstream or callable.
+
                 if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
+                    # first case: if it's not an itemstream or callable, assume it's a literal.
                     note.pfields[key] = self.streams[key]
                 elif isinstance(self.streams[key], Itemstream):
+                    # second  case: itemstream.  Get the next value, if it's a dictionary it's a special case to support mapping streams specifically.
                     value = self.streams[key].get_next_value()
 
-                    # support mapping stream
+                    # support mapping stream - more tests needed here.
                     # i.e.  [{"rhy": "h", "indx": 5.54}, {"rhy": "h", "indx": 6.67}, {"rhy": "h", "indx": 8.0}]
+                    #   2025.03.25: I think this is old - you decided not to support mappings this way. They are special configs on the item stream.
+                    #           todo or: is this what the mapping lists look like after ctor of an item stream is called with
+                    #                   mapping_keys and mapping_lists set?
+                    #       this is a different flavor of mapping keys though. Here you can use simple mapping to say
+                    #           "every time it's an either: - make it loud" or " - map it to a given sound" etc. This shouldn't be called mapping
+                    #            todo write an example leveraging this.
+
                     if isinstance(value, dict):
                         for item in value.keys():
                             if item == keys.rhythm:
@@ -201,27 +223,37 @@ class Generator:
                             else:
                                 note.pfields[item] = value[item]
                     else:
+                        # if not a dict, set the value.
                         note.pfields[key] = value
 
+                    # in get_next_value, the stream may be processing a list. there should only be one list (one item to chord from) at a time,
+                    #   or else weird (and maybe fun) stuff will happen.
                     if self.streams[key].is_chording:
                         note_is_chording = True
 
+
+            # if we are not chording, move time forward by the rhythm value and save it.
             if not note_is_chording:
                 if rhythm is not None:
+                    # in this case, rhythm was set by the mapping dictionary case above.
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
                 elif note.rhythm is not None:
+                    # 2025.03.23: in this case..... note.rhythm has somehow been set. This may be a remnant of an example
+                    #   where the rhythm was set by a callable before this condition.
                     self.cur_time = self.cur_time + note.rhythm
                 elif keys.rhythm in self.streams and self.streams[keys.rhythm] is not None:
                     # 2024.01.31 added this clause instead of this being the default.
-                    #   test_generator was tripping here. A todo might be to be prescriptive in checking that - if
+                    #   test_generator was tripping here. A todo might be to be prescriptive in checking that
                     #   if rhy isn't set in post_processes OR here, we should error out.
+                    # 2025.03.23: another old comment ^^
+                    #   todo: write some tests targeting the specific cases we want to support.
                     rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
             else:
                 # 2025.03.12 Trying to set rhythm in chording scenarioes, so that post_processes or callables can refer to rhythm.
-                # ..adapted from Itemstream get next value - this should act as a
+                # ..adapted from Itemstream.get next value.
                 # if isinstance(self.streams[keys.rhythm].tempo, list):
                 #     note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index][self.streams[keys.rhythm].chording_index],
                 #                                    self.tempo[self.streams[keys.rhythm].note_count % len(self.tempo)])
@@ -232,8 +264,11 @@ class Generator:
                 note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], self.streams[keys.rhythm].tempo)
 
 
-        # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
+            # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
             #   did I think we would want to do post-processing BEFORE curtime is set or something?
+
+
+            # the note is fully initialized. Run the list of post process in order.
             for item in self.post_processes:
                 if callable(item):
                     if len(funcsigs.signature(item).parameters) > 1:
@@ -241,19 +276,22 @@ class Generator:
                     else:
                         item(note)
 
-            # after setting primitives and ItemStream-driven values, evaluate functions
+            # after setting primitives and ItemStream-driven values, evaluate functions.
+            # 2025.03.23 This is biased towards cases where we know we'd want to eval callables after post-processes.
             for key in self.streams.keys():
                 # this could be a literal or ItemStream
                 if callable(self.streams[key]):
                     value = self.streams[key](note)
                     note.pfields[key] = value
 
+            # Enforce time limit.
             if self.cur_time > self.time_limit > 0:
                 break
             else:
                 ret_lines.append(str(note) + "\n")
                 self.notes.append(str(note) + "\n")
                 self.note_count += 1
+                # update the duration of the score.
                 if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
                     self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
 
@@ -268,7 +306,7 @@ class Generator:
             if g.score_dur > self.score_dur:
                 self.score_dur = g.score_dur
 
-        # sort by start time
+        # sort by start time - remember, these are string representations of the note.
         self.notes.sort(key=lambda note:float(note.split()[1]))
 
         return self

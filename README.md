@@ -39,16 +39,16 @@ In Csound, notes have at a minimum an instrument, start time, and duration as th
 
 In Thuja, **Itemstreams** define sequences of p-field values as notes are generated. They can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them, etc. 
 
-from thuja
-	from thuja.itemstream import notetypes
-	from thuja.itemstream import streammodes
-	from thuja.itemstream import Itemstream
-	from thuja.generator import Generator
-	from thuja.generator import keys
-	from collections import OrderedDict
-	from thuja import utils
-	import copy
-	import csnd6
+    from thuja
+        from thuja.itemstream import notetypes
+        from thuja.itemstream import streammodes
+        from thuja.itemstream import Itemstream
+        from thuja.generator import Generator
+        from thuja.generator import keys
+        from collections import OrderedDict
+        from thuja import utils
+        import copy
+        import csnd6
 
 Declare an Itemstream playing a sequence of rhythms. While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. 
 
@@ -73,10 +73,10 @@ Define a string of pitches using pitch-class notation. Chords are nested lists. 
 	)
 
 Define a Generator which will generate notes like so: 
-#instr	start	dur		amp		freq	pan		distance	percent
-#p1		p2		p3		p4		p5		p6		p7			p8	
-i1      0.0 	0.1		1 		440		45		10			.1
-```
+
+    #instr	start	dur		amp		freq	pan		distance	percent
+    #p1		p2		p3		p4		p5		p6		p7			p8	
+    i1      0.0 	0.1		1 		440		45		10			.1
 
 ```
 g = Generator(
@@ -107,7 +107,7 @@ Add a note for reverb:
 	g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 
 
-This example is found in the pieces folder, called thuja_example.py. 
+This example is found in the examples folder, called thuja_example.py. 
 
 
 # Thuja.itemstream
