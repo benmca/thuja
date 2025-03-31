@@ -3,7 +3,7 @@ import unittest
 from context import thuja
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
-from thuja.generator import keys
+from thuja.streamkeys import keys
 import thuja.utils as utils
 
 from collections import OrderedDict

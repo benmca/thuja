@@ -1,8 +1,8 @@
 import random
 import sys
 
+from thuja.streamkeys import StreamKey, keys
 from thuja.itemstream import Itemstream
-from thuja.itemstream import Streammodes
 from thuja.itemstream import notetypes
 
 from thuja.event import Event
@@ -10,47 +10,8 @@ from thuja import utils
 from collections import OrderedDict
 import copy
 import funcsigs
-import socket
-import logging
 import threading
 import time
-
-
-class StreamKey:
-
-    instrument = 'instr'
-    start_time = 'start_time'
-    duration = 'dur'
-    rhythm = 'rhy'
-    amplitude = 'amp'
-    frequency = 'freq'
-
-    # support loopindx
-    index = 'indx'
-
-    # locsig support
-    pan = 'pan'
-    distance = 'dist'
-    percent = 'pct'
-
-    def __init__(self):
-        # the usual suspects
-        self.instrument = 'instr'
-        self.start_time = 'start_time'
-        self.duration = 'dur'
-        self.rhythm = 'rhy'
-        self.amplitude = 'amp'
-        self.frequency = 'freq'
-
-        # support loopindx
-        self.index = 'indx'
-
-        # locsig support
-        self.pan = 'pan'
-        self.distance = 'dist'
-        self.percent = 'pct'
-
-
 
 
 class Generator:
@@ -258,9 +219,18 @@ class Generator:
                 #                                    self.tempo[self.streams[keys.rhythm].note_count % len(self.tempo)])
                 # else:
                 if isinstance(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], list):
-                    print("in chording case, rhythm stream must be a flat list - current value is a list")
+                    print("in chording case, rhythm stream must be a flat list - current value is a list (Nested list case)")
                     assert False
-                note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], self.streams[keys.rhythm].tempo)
+
+                # here, we handle the case of tempo changing over time via list. Same logic as 'if isinstance(self.tempo, list):'
+                # case in Itemstream
+                tempo = self.streams[keys.rhythm].tempo
+
+                if isinstance(self.streams[keys.rhythm].tempo, list):
+                    tempo = self.streams[keys.rhythm].tempo[self.streams[keys.rhythm].note_count % len(self.streams[keys.rhythm].tempo)]
+
+                note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[
+                    keys.rhythm].index], tempo)
 
 
             # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
@@ -549,4 +519,3 @@ class GeneratorThread(threading.Thread):
         # self.thread.lock()
         pass
 
-keys = StreamKey()

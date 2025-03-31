@@ -1,7 +1,7 @@
 from thuja.itemstream import notetypes
 from thuja.itemstream import Itemstream
 from thuja.generator import Generator
-from thuja.generator import keys
+from thuja.streamkeys import keys
 from thuja import csound_utils
 from collections import OrderedDict
 

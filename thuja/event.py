@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from streamkeys import keys
 
 class Event:
     """
@@ -14,7 +15,7 @@ class Event:
             self.pfields[item] = ''
 
         # 2025.03.25 todo - how to make keys a singleton that can be imported here
-        self.pfields["start_time"] = start_time
+        self.pfields[keys.start_time] = start_time
         self.rhythm = None
 
     def __str__(self):

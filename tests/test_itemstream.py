@@ -1,5 +1,4 @@
 import unittest
-from thuja.itemstream import *
 from thuja.generator import *
 import numpy as np
 
