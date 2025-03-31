@@ -81,7 +81,7 @@ class Generator:
         self.streams = None
         if isinstance(streams, OrderedDict):
             self.streams = streams
-        if streams is not None:
+        elif streams is not None:
             self.streams = OrderedDict(streams)
         self.note_limit = note_limit
 
@@ -100,9 +100,12 @@ class Generator:
                 self.pfields = list(self.streams.keys())
                 self.pfields.insert(1, keys.start_time)
 
-        # a place to put stuff to refer to in callables - not sure best way forward here
+        # a place to put stuff to refer to in callables
         self.context = init_context
+
+        # an array of callables, called in sequence after each note is initialized.
         self.post_processes = post_processes
+
         self.generators = []
 
     def with_streams(self, streams):
@@ -170,24 +173,17 @@ class Generator:
         self.cur_time = self.start_time
         ret_lines = []
         self.notes = []
+
         # todo - audit this, but looks like I intended note_limit to trump time_limit
         while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
         # we've got options - this condition says whichever one we get to first wins
         # while (self.note_limit > 0 and (self.note_count < self.note_limit)) or ((self.time_limit > 0) and self.cur_time < self.time_limit):
-
-
-            # # initialize_event_with_pfields
-            note = Event(pfields=self.pfields)
-            note.pfields[keys.start_time] = self.cur_time
-
+            note = Event(pfields=self.pfields, start_time=self.cur_time)
             note_is_chording = False
             rhythm = None
 
-            # # set note from streams
-
             # for each key in the stream e.g. instr, dur, amp, freq, etc.
             for key in self.streams.keys():
-
                 # rhythm is a special case. We deal with this case below.
                 if key is keys.rhythm:
                     continue
@@ -197,8 +193,11 @@ class Generator:
                 #       make everything either an itemstream or callable.
 
                 if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
-                    # first case: if it's not an itemstream or callable, assume it's a literal.
+                #     # first case: if it's not an itemstream or callable, assume it's a literal.
+                #     # 2025.03.25 This case isn't reachable given current ctor of ItemStream- should we do anything with this i.e. log?
+                #   2025.03.25 This case --is--reachable if you call Generator ctor with list of duples, like the old examples do.
                     note.pfields[key] = self.streams[key]
+
                 elif isinstance(self.streams[key], Itemstream):
                     # second  case: itemstream.  Get the next value, if it's a dictionary it's a special case to support mapping streams specifically.
                     value = self.streams[key].get_next_value()

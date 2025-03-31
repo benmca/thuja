@@ -28,7 +28,7 @@ g = Generator(
         (keys.instrument, 1),
         (keys.rhythm, rhythms),
         (keys.duration, Itemstream([.1])),
-        (keys.amplitude, 1),
+        (keys.amplitude, .25),
         (keys.frequency, pitches),
     ],
     pfields=None,
@@ -46,4 +46,4 @@ g.add_generator(g2)
 g.generate_notes()
 
 score_string = g.generate_score_string()
-csound_utils.play_csound("sine.orc", g, silent=True)
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-odac1', '-W'])

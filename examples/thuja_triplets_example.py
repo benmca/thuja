@@ -29,23 +29,24 @@ g = Generator(
         (keys.instrument, 1),
         (keys.rhythm, rhythms),
         (keys.duration, Itemstream([.1])),
-        (keys.amplitude, 1),
+        (keys.amplitude, .25),
         (keys.frequency, pitches)
     ],
     pfields=None,
     gen_lines=[';sine',
                'f 1 0 16384 10 1']
 )
-g.time_limit=120
+g.time_limit=60
 
 g2 = copy.deepcopy(g)
 g2.streams[keys.rhythm] = Itemstream(['e'],'sequence', tempo=120, notetype=notetypes.rhythm)
 g2.streams[keys.frequency] = Itemstream([['c5','d','e'],'g3']*4+['f5','c3']*4+[['c5','d','e'],'g3']*4+['g5','d3']*4,notetype=notetypes.pitch)
-g2.streams[keys.amplitude] = Itemstream([.5])
+# g2.streams[keys.amplitude] = Itemstream([.33])
 g.add_generator(g2)
 
 g3 = copy.deepcopy(g2)
 g.add_generator(g3)
 g.generate_notes()
 
-csound_utils.play_csound("sine.orc", g)
+
+csound_utils.play_csound("sine.orc", g, args_list=['-odac0', 'W'])
