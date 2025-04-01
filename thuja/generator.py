@@ -16,12 +16,12 @@ import time
 
 class Generator:
 
-    def __init__(self, note_limit=16,
+    def __init__(self, note_limit=0,
                  start_time=0.0,
                  streams=None,
                  pfields=None,
                  post_processes=[],
-                 init_context={},
+                 init_context=None,
                  gen_lines=[]):
         """
         Initializes a Generator object.ˆ
@@ -37,7 +37,6 @@ class Generator:
                 can be referenced wherever. Defaults to an empty dictionary.
             gen_lines (list): A list of strings (csound score events) to append to generated score string. Defaults to an empty list.
         """
-
         self.start_time = start_time
         self.streams = None
         if isinstance(streams, OrderedDict):
@@ -47,7 +46,11 @@ class Generator:
         self.note_limit = note_limit
 
         self.cur_time = 0.0
+        # absolute time limit
         self.time_limit = 0
+        # in cases where this is a child generator, and the start time is offset by the parent's start time,
+        #   generator_dur can be used to set a relative time limit after that offset occurs in generate_notes
+        self.generator_dur = 0
 
         self.gen_lines = gen_lines
         self.note_count = 0
@@ -62,7 +65,10 @@ class Generator:
                 self.pfields.insert(1, keys.start_time)
 
         # a place to put stuff to refer to in callables
-        self.context = init_context
+        if init_context is not None:
+            self.context = init_context
+        else:
+            self.context = {}
 
         # an array of callables, called in sequence after each note is initialized.
         self.post_processes = post_processes
@@ -236,6 +242,11 @@ class Generator:
             # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
             #   did I think we would want to do post-processing BEFORE curtime is set or something?
 
+            for key in self.streams.keys():
+                # this could be a literal or ItemStream
+                if callable(self.streams[key]):
+                    value = self.streams[key](note)
+                    note.pfields[key] = value
 
             # the note is fully initialized. Run the list of post process in order.
             for item in self.post_processes:
@@ -245,13 +256,15 @@ class Generator:
                     else:
                         item(note)
 
-            # after setting primitives and ItemStream-driven values, evaluate functions.
+            # 2025.03.31: moving this back to precede post_processing
+            #           legacy comments below:
+            # after setting primitives and ItemStream-driven values, evaluate lambdas / callables in streams.
             # 2025.03.23 This is biased towards cases where we know we'd want to eval callables after post-processes.
-            for key in self.streams.keys():
-                # this could be a literal or ItemStream
-                if callable(self.streams[key]):
-                    value = self.streams[key](note)
-                    note.pfields[key] = value
+            # for key in self.streams.keys():
+            #     # this could be a literal or ItemStream
+            #     if callable(self.streams[key]):
+            #         value = self.streams[key](note)
+            #         note.pfields[key] = value
 
             # Enforce time limit.
             if self.cur_time > self.time_limit > 0:
@@ -265,7 +278,18 @@ class Generator:
                     self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
 
         for g in self.generators:
-            g.start_time += self.start_time
+            # for any child generator, we make a few assumptions. One, the start time of the child is relative
+            #   to the parent.
+            #   Second, that the parent's limits should always fall to children if they are not set.
+            #   If the child's time_limit is set, it's treated as absolute time limit, despite the fact the start time
+            #   is relative to the parent. For this case, we introduce the generator_duration, which is a cue to this
+            #   condition that the time_limit can be set relative to the start_time.
+            #   2025.04.01 - I type this out as a note for myself, to make these side effects more explicit.
+            if g.generator_dur > 0:
+                g.time_limit = g.start_time + g.generator_dur
+                # assume here that g.start_time is absolute and should not be offset.
+            else:
+                g.start_time += self.start_time
             if self.time_limit > 0 and g.time_limit == 0:
                 g.time_limit = self.time_limit
             if self.note_limit > 0 and g.note_limit == 0:
@@ -274,6 +298,7 @@ class Generator:
             self.notes.extend(g.notes)
             if g.score_dur > self.score_dur:
                 self.score_dur = g.score_dur
+
 
         # sort by start time - remember, these are string representations of the note.
         self.notes.sort(key=lambda note:float(note.split()[1]))
@@ -318,7 +343,7 @@ class Generator:
 class BasicLine(Generator):
 
     def __init__(self):
-        Generator.__init__(self)
+        super().__init__()
         self.streams=OrderedDict([
             (keys.instrument, Itemstream([1])),
             (keys.duration, Itemstream([1])),
@@ -346,7 +371,7 @@ class BasicLine(Generator):
                                'f 2 0 256 7 0 128 1 0 -1 128 0\n',
                                ';pulse\n',
                                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-        self.note_limit = 1
+        self.note_limit = 0
 
 
     def set_stream(self, k, v):
