@@ -5,8 +5,8 @@ from thuja.streamkeys import keys
 from thuja import csound_utils
 from collections import OrderedDict
 
-rhythms = Itemstream("q".split(),
-                     tempo=120,
+rhythms = Itemstream("s e s q".split(),
+                     tempo=60,
                      notetype=notetypes.rhythm)
 
 pitches = Itemstream("c5 d e f g a b".split(),
@@ -17,7 +17,7 @@ g = Generator(
         (keys.instrument, 1),
         (keys.rhythm, rhythms),
         (keys.duration, .1),
-        (keys.amplitude, 1),
+        (keys.amplitude, Itemstream(".5 .25".split())),
         (keys.frequency, pitches),
     ]),
     note_limit=(len(pitches.values)*4),
@@ -27,4 +27,4 @@ g = Generator(
 g.generate_notes()
 score_string = g.generate_score_string()
 print(score_string)
-csound_utils.play_csound("sine.orc", g, silent=True)
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-ex.wav', '-W'])
