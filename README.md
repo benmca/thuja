@@ -10,7 +10,7 @@ You will also need to install Csound: https://csound.com/download.html
 
 # Tests and Getting Started
 
-Jan 2024: 
+May 2025: 
 
 To run the tests, cd into the tests directory and run the runUnitTests.sh:
 
@@ -39,33 +39,38 @@ In Csound, notes have at a minimum an instrument, start time, and duration as th
 
 In Thuja, **Itemstreams** define sequences of p-field values as notes are generated. They can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them, etc. 
 
-    from thuja
-        from thuja.itemstream import notetypes
-        from thuja.itemstream import streammodes
-        from thuja.itemstream import Itemstream
-        from thuja.notegenerator import Generator
-        from thuja.notegenerator import keys
-        from collections import OrderedDict
-        from thuja import utils
-        import copy
-        import csnd6
+    from thuja.itemstream import notetypes
+    from thuja.itemstream import streammodes
+    from thuja.itemstream import Itemstream
+    from thuja.notegenerator import NoteGenerator
+    from thuja.streamkeys import keys
+    from collections import OrderedDict
 
-Declare an Itemstream playing a sequence of rhythms. While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. 
+Declare an Itemstream playing a sequence of rhythms. 
 
-	rhythms = Itemstream(['e.','e.','e','q.','e','q.','e','h']),
-	    streammode=streammodes.sequence,
-	    tempo=120,
-	    notetype=notetypes.rhythm)
+    rhythms = Itemstream(['e.', 'e.', 'e', 'q.', 'e', 'q.', 'e', 'h'],
+        streammode = streammodes.sequence,
+        tempo = 120,
+        notetype = notetypes.rhythm)
 
-Amplitude will always be 1.
+Side note on rhythm:
 
-	amps = Itemstream([1])
+While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. Dots can be added after as in traditional
+notation, and add half the value to the note. You can add rhythms as well i.e. q. == q+e. Numbers can be used in place
+of these symbols i.e. 32, 16 and 8 are all viable, and derive timing information from the tempo and the duration of a 
+whole note at that tempo. So, at 60 bpm, a q is 1 second (whole note is 4 seconds / 4) and s or 16 is .25 (whole note is 4 seconds / 16).
 
-Define a string of pitches using pitch-class notation. Chords are nested lists. This stream is in heap mode, meaning no value will repeat until all others have been used.
+We'll set amplitude to .5 for all generated notes. The Csound score will use this as a scalar (between 0 and 1) for loudness. 
+
+	amps = Itemstream([.5])
+
+Define a string of pitches using pitch-class notation. Chords are nested lists. 
+This stream is in heap mode, meaning no value will repeat until all others have been used.
+'r' denotes a rest in a stream of notes.
 
 	pitches = Itemstream(sum([
-	    ['c4','c','c','d','c5','c','c','d'],
-	    ['c3','e',['c','e','g'],'c4','e',['c','e','g']],
+	    ['c4', 'r', 'r','d','c5','c','c','d'],
+	    ['c3','e',['c','e','g'],'c4','r',['c','e','g']],
 	    [['c','e','g'],['c','e','g'],['c','d','e'],['e','f','g']],
 	    ],[]),
 	    streammode=streammodes.heap,
@@ -78,13 +83,15 @@ Define a Generator which will generate notes like so:
     #p1		p2		p3		p4		p5		p6		p7			p8	
     i1      0.0 	0.1		1 		440		45		10			.1
 
+This generator sets default values in the NoteGenerator constructor for instrument, duration, pan, distance and percent.  
+Under the covers, this creates a single item ItemStream for each of these fields as we did for amps, above.
 ```
-g = Generator(
+g = NoteGenerator(
     streams=OrderedDict([
         (keys.instrument, 1),
         (keys.rhythm, rhythms),
-        (keys.duration, Itemstream([.1])),
-        (keys.amplitude, 1),
+        (keys.duration, .1),
+        (keys.amplitude, amps),
         (keys.frequency, pitches),
         (keys.pan, 45),
         (keys.distance, 10),
@@ -107,16 +114,19 @@ Add a note for reverb:
 	g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
 
 
-This example is found in the examples folder, called thuja_example.py. 
+This example is found in the examples folder, called thuja.py. 
 
 
 # Thuja.itemstream
 
 ### desc
 
-Itemstreams are the basic compositional building blocks in Thuja, and are just what the name implies: streams of items. They are used to convey a stream of pitches, rhythms, numbers or strings. Used in groups with a Generator (see below) they describe musical ideas.  
+Itemstreams are the basic compositional building blocks in Thuja, and are just what the name implies: streams of items. 
+They are used to convey a stream of pitches, rhythms, numbers or strings. Used in groups with a Generator (see below) 
+they describe musical ideas.  
 
-Initialize an Itemstream with a list of values (the *initstream* parameter in init, which sets the *values* member of Initstream) and you're ready to roll.
+Initialize an Itemstream with a list of values (the *initstream* parameter in init, which sets the *values* 
+member of Initstream) and you're ready to roll.
 
 Itemstreams have several configuration options apart from the values it contains, including:
 
@@ -130,21 +140,20 @@ Itemstreams have several configuration options apart from the values it contains
 
 - **sequence**: stream will generate values in sequence.
 - **random**: for each call to get_next_value(), stream will return a random item from values.
-- **heap**: for each call to get_next_value(), stream will return a random item from values. No value is repeated until all others have been returned.
+- **heap**: for each call to get_next_value(), stream will return a random item from values. No value is repeated until 
+all others have been returned.
 
 The default configuration for an Itemstream is streammode=streammodes.sequence, notetype=notetypes.number
 
 ### init with list
 
-To construct an Itemstream, decide which pfield in a score you want to generate values for, and initialize the Itemstream. 
+To construct an Itemstream, decide which pfield in a score you want to generate values for, and initialize the 
+Itemstream. 
 
 	amplitudes = Itemstream([1,2,3,4,5])
 
-When a Generator leverages this Itemstream (or get_next_value() is called), the Itemstream will return 1 through 5 in sequence, wrapping back to the beginning on the 6th note generated.
-
-### ctor with function
-
-todo 
+When a NoteGenerator leverages this Itemstream (or get_next_value() is called), the Itemstream will return 1 through 5 
+in sequence, wrapping back to the beginning on the 6th note generated.
 
 ### notetype: pitch example
 
@@ -200,26 +209,22 @@ Rhythms can be added, making w+w+w, w+q, 12+12 all valid rhythm values.  In the 
 	
 Itemstreams have a tempo value, which defaults to 120, as indicated by the durations returned in the above example. 
 
-### streammode: sequence, heap, random
-
-todo 
-
 # thuja.notegenerator
 
 ### desc 
 
-The generator class is a container holding a list of Itemstreams mapped to pfields, a starttime and optionally a nested list of Generators. Generators generate csound scores, or notelists for use in csounds scores.
-
-### initializing a generator
-
-todo 
+The class is a container holding a list of Itemstreams mapped to pfields, a starttime and optionally a nested list of 
+NoteGenerators. NoteGenerators generate csound scores, or notelists for use in csounds scores. 
 
 ### nested generators
 
-todo 
+NoteGenerators can have children, whose start_time, time_limit and note_limit are inherited from the parent. 
+See examples/child_generator.py for an illustration. 
 
+### post-processes and lambdas
 
-### post-processes
+For each note generated, callables can be used to set parameters. post_processes added to a NoteGenerator are called
+after all pfields are populated, and can be used to add or modify a note. Any lambda functions used to initialize
+pfields in place of Itemstreams are called after post_processes.  See test_callables_lambda and 
+test_callables_postprocesses in tests/test_generator.py for examples. 
 
-todo
- 

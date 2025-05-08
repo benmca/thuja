@@ -2,6 +2,7 @@ from __future__ import print_function
 import unittest
 from thuja.itemstream import Itemstream
 from thuja.notegenerator import NoteGenerator
+from thuja.notegenerator import Line
 from thuja.streamkeys import keys
 import thuja.utils as utils
 
@@ -288,6 +289,42 @@ class TestGenerators(unittest.TestCase):
 
         score = g.generate_score_string()
         self.assertTrue(len(score.split('\n')) == 248)
+
+
+
+
+    def test_child_generators(self):
+        melody_left = (
+            Line().with_rhythm(Itemstream(['w'], notetype=notetypes.rhythm, streammode=streammodes.sequence))
+            .with_duration(lambda note: note.rhythm * 1)
+            .with_amps(1)
+            .with_pitches(
+                Itemstream(['c3', 'd', 'e', 'f', 'g', 'a', 'b'], notetype=notetypes.pitch,
+                           streammode=streammodes.sequence))
+            .with_pan(Itemstream(['10'], notetype=notetypes.number, streammode=streammodes.heap))
+            .with_dist(5)
+            .with_percent(.04)
+            .with_instr(2)
+        )
+        melody_left.time_limit = 20
+
+
+        melody_right = (
+            Line().with_rhythm(Itemstream(['s'], notetype=notetypes.rhythm, streammode=streammodes.sequence))
+            .with_duration(lambda note: note.rhythm * 1)
+            .with_amps(1)
+            .with_pitches(
+                Itemstream(['c3', 'g'], notetype=notetypes.pitch,
+                           streammode=streammodes.sequence))
+            .with_pan(Itemstream(['80'], notetype=notetypes.number, streammode=streammodes.heap))
+            .with_dist(5)
+            .with_percent(.04)
+            .with_instr(2)
+        )
+
+        melody_left.add_generator(melody_right)
+
+        pass
 
 if __name__ == '__main__':
     unittest.main()
