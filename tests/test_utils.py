@@ -2,7 +2,7 @@ from __future__ import print_function
 import unittest
 from context import thuja
 from thuja.itemstream import Itemstream
-from thuja.generator import Generator
+from thuja.notegenerator import NoteGenerator
 from thuja.streamkeys import keys
 import thuja.utils as utils
 

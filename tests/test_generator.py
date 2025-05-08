@@ -1,7 +1,7 @@
 from __future__ import print_function
 import unittest
 from thuja.itemstream import Itemstream
-from thuja.generator import Generator
+from thuja.notegenerator import NoteGenerator
 from thuja.streamkeys import keys
 import thuja.utils as utils
 
@@ -26,7 +26,7 @@ class TestGenerators(unittest.TestCase):
         def f(note):
             return note.rhythm * 2
 
-        g = Generator(
+        g = NoteGenerator(
             pfields=[
                 keys.instrument,
                 keys.start_time,
@@ -62,7 +62,7 @@ class TestGenerators(unittest.TestCase):
         ], []))
         pitches.notetype = 'pitch'
 
-        g = Generator(
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, lambda note:note.rhythm*2),
@@ -102,11 +102,16 @@ class TestGenerators(unittest.TestCase):
             item = g.context['tuplestream'].values[indx]
             note.rhythm = utils.rhythm_to_duration(item[keys.rhythm], g.context['tuplestream'].tempo)
             note.pfields[keys.index] = item[keys.index]
+            note.duration = note.rhythm*2
 
-        g = Generator(
+        # 2025.05.08 - with recent changes, lambda will be called before post_processes in generate_notes, so lambda
+        #               expression here has no rhythm. Docs should guide users to use either post_process or lambdas,
+        #               not necessarily both.
+        #               TODO: Add a safeguard for this uninitiated rhythm situation once that algo is baked.
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
-                (keys.duration, lambda note:note.rhythm*2),
+                (keys.duration, 1),
                 (keys.amplitude, Itemstream([1])),
                 (keys.frequency, pitches)
             ]),
@@ -142,7 +147,7 @@ class TestGenerators(unittest.TestCase):
         ], []))
         pitches.notetype = 'pitch'
 
-        g = Generator(
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, Itemstream([.1])),
@@ -177,7 +182,7 @@ class TestGenerators(unittest.TestCase):
         ], []))
         pitches.notetype = 'pitch'
 
-        g = Generator(
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, Itemstream([.1])),
@@ -218,7 +223,7 @@ class TestGenerators(unittest.TestCase):
         pct = Itemstream([.1])
 
         # global_score.reinit(rhythms, [amps, pitches, pan, dist, pct], note_limit=240)
-        g = Generator(
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, Itemstream([.1])),
@@ -259,7 +264,7 @@ class TestGenerators(unittest.TestCase):
         dist = 10
         pct = .1
 
-        g = Generator(
+        g = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
                 (keys.duration, Itemstream([.1])),

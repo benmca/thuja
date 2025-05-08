@@ -1,5 +1,5 @@
 import unittest
-from thuja.generator import *
+from thuja.notegenerator import *
 import numpy as np
 
 
@@ -46,7 +46,7 @@ class TestItemstreams(unittest.TestCase):
 
     def test_basiccase(self):
         pitches = Itemstream(['c4', 'c', 'c', 'd', 'c5', 'c', 'c', 'd'], notetype=notetypes.pitch)
-        g = Generator(
+        g = NoteGenerator(
             streams=[
                 (keys.instrument, 1),
                 (keys.rhythm, Itemstream(['q'], 'sequence', tempo=[120, 60, 30], notetype=notetypes.rhythm)),
@@ -87,7 +87,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertTrue(len(output.split('\n')) == 55)
 
     def test_tempo(self):
-        g = Generator(
+        g = NoteGenerator(
             streams=[
                 (keys.instrument, 3),
                 (keys.rhythm, Itemstream(['e'] * 60, 'sequence',

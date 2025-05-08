@@ -14,7 +14,7 @@ import threading
 import time
 
 
-class Generator:
+class NoteGenerator:
 
     def __init__(self, note_limit=0,
                  start_time=0.0,
@@ -156,7 +156,7 @@ class Generator:
                     continue
                 # 2025.03.23 old comment: this could be a literal or ItemStream
                 # 2025.03.23 Streams are either ItemStreams, callables (lambdas, i.e. dur = .5*rhythm) or string or float literals
-                #   todo: validate that you aren't breaking this in BasicLine initialization from a literal. It simplifies to
+                #   todo: validate that you aren't breaking this in Line initialization from a literal. It simplifies to
                 #       make everything either an itemstream or callable.
 
                 if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
@@ -306,7 +306,7 @@ class Generator:
         return self
 
     def add_generator(self, other):
-        if isinstance(other, Generator):
+        if isinstance(other, NoteGenerator):
             self.generators.append(other)
 
     def add_bars_to_starttime(self, bars=1, beats=0, num=4, denom=4, tempo=120):
@@ -340,7 +340,7 @@ class Generator:
                 s.set_seed(seed)
 
 
-class BasicLine(Generator):
+class Line(NoteGenerator):
 
     def __init__(self):
         super().__init__()
@@ -500,7 +500,7 @@ class BasicLine(Generator):
         return self
 
 
-class GeneratorThread(threading.Thread):
+class NoteGeneratorThread(threading.Thread):
 
     def __init__(self, g, cs, cpt, sleep_interval=.01):
         self.g = g

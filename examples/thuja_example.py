@@ -1,7 +1,7 @@
 from thuja.itemstream import notetypes
 from thuja.itemstream import streammodes
 from thuja.itemstream import Itemstream
-from thuja.generator import Generator
+from thuja.notegenerator import NoteGenerator
 from thuja.streamkeys import keys
 from thuja import csound_utils
 import copy
@@ -23,7 +23,7 @@ pitches = Itemstream(sum(['c4 c c d c5 c c d'.split(),
     notetype=notetypes.pitch
 )
 
-g = Generator(
+g = NoteGenerator(
     streams=[
         (keys.instrument, 1),
         (keys.rhythm, rhythms),

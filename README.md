@@ -17,7 +17,7 @@ To run the tests, cd into the tests directory and run the runUnitTests.sh:
 	cd tests
 	sh runUnitTests.sh
 
-I'm currently overhauling the docs since adding the BasicLine class, which is a step towards making Thuja more concise and therefore better in a live coding context.
+I'm currently overhauling the docs since adding the Line class, which is a step towards making Thuja more concise and therefore better in a live coding context.
 
 The /examples directory contains the best documentation to date. 
 
@@ -43,8 +43,8 @@ In Thuja, **Itemstreams** define sequences of p-field values as notes are genera
         from thuja.itemstream import notetypes
         from thuja.itemstream import streammodes
         from thuja.itemstream import Itemstream
-        from thuja.generator import Generator
-        from thuja.generator import keys
+        from thuja.notegenerator import Generator
+        from thuja.notegenerator import keys
         from collections import OrderedDict
         from thuja import utils
         import copy
@@ -204,7 +204,7 @@ Itemstreams have a tempo value, which defaults to 120, as indicated by the durat
 
 todo 
 
-# Thuja.generator
+# thuja.notegenerator
 
 ### desc 
 

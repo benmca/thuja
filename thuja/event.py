@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from streamkeys import keys
+from thuja.streamkeys import keys
 
 class Event:
     """
