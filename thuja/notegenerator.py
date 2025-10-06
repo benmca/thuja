@@ -502,7 +502,7 @@ class Line(NoteGenerator):
 
 class NoteGeneratorThread(threading.Thread):
 
-    def __init__(self, g, cs, cpt, sleep_interval=.01):
+    def __init__(self, g, cs, cpt, sleep_interval=.0001):
         self.g = g
         self.cs = cs
         self.cpt = cpt
@@ -524,18 +524,22 @@ class NoteGeneratorThread(threading.Thread):
 
         arbitrary_score_time = 0
         while not self.stop_event.is_set():
-            # score_time = cs.scoreTime()
-            # if arbitraty_score_time < g.time_limit:
-            # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
+            score_time = cs.scoreTime()
+            # if arbitrary_score_time < g.time_limit:
+                # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
+            # print("score time: " + str(score_time))
 
-            for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
+            # for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
+            for note in [note for note in g.notes if
+                         float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (
+                                 score_time)]:
                 print(str(note))
                 n = note.split()
                 n[1] = '0.0'
                 new_note = '\t'.join(n)
                 cpt.inputMessage(new_note)
 
-            arbitrary_score_time = arbitrary_score_time + sleep_interval
+            arbitrary_score_time = score_time
             time.sleep(sleep_interval)
 
         self.stop_event.clear()
