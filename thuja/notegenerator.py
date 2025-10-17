@@ -150,6 +150,7 @@ class NoteGenerator:
             note_is_chording = False
             rhythm = None
 
+
             # for each key in the stream e.g. instr, dur, amp, freq, etc.
             for key in self.streams.keys():
                 # rhythm is a special case. We deal with this case below.
@@ -405,7 +406,7 @@ class Line(NoteGenerator):
             self.set_stream(StreamKey().rhythm, v)
         else:
             raise Exception("rhythm not set - supply ItemStream, string, or list")
-
+        return self
 
     def with_tempo(self, x):
         return self.tempo(x)
