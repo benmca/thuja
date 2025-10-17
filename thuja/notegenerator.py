@@ -1,5 +1,6 @@
 import random
 import sys
+from operator import truediv
 
 from thuja.streamkeys import StreamKey, keys
 from thuja.itemstream import Itemstream
@@ -405,36 +406,38 @@ class Line(NoteGenerator):
         else:
             raise Exception("rhythm not set - supply ItemStream, string, or list")
 
+
     def with_tempo(self, x):
-        self.tempo(x)
-        return self
+        return self.tempo(x)
 
     def tempo(self, x):
         self.streams[keys.rhythm].tempo = x
+        return self
 
     def with_instr(self, v):
-        self.instr(v)
-        return self
+        return self.instr(v)
 
     def instr(self, v):
         self.set_stream(StreamKey().instrument, v)
-    def with_duration(self, v):
-        self.durs(v)
         return self
+
+
+    def with_duration(self, v):
+        return self.durs(v)
 
     def durs(self, v):
         self.set_stream(StreamKey().duration, v)
+        return self
 
     def with_amps(self, v):
-        self.amps(v)
-        return self
+        return self.amps(v)
 
     def amps(self, v):
         self.set_stream(StreamKey().amplitude, v)
+        return self
 
     def with_pitches(self, v):
-        self.pitches(v)
-        return self
+        return self.pitches(v)
 
     def pitches(self, v):
         if isinstance(v, str) or isinstance(v, list):
@@ -444,34 +447,35 @@ class Line(NoteGenerator):
             self.set_stream(StreamKey().frequency, v)
         else:
             raise Exception("pitches not set - supply ItemStream, string, or list")
+        return self
 
     def with_freqs(self, v):
-        self.freqs(v)
-        return self
+        return self.freqs(v)
 
     def freqs(self, v):
         self.set_stream(StreamKey().frequency, v)
+        return self
 
     def with_pan(self, v):
-        self.pan(v)
-        return self
+        return self.pan(v)
 
     def pan(self, v):
         self.set_stream(StreamKey().pan, v)
+        return self
 
     def with_dist(self, v):
-        self.dist(v)
-        return self
+        return self.dist(v)
 
     def dist(self, v):
         self.set_stream(StreamKey().distance, v)
+        return self
 
     def with_percent(self, v):
-        self.pct(v)
-        return self
+        return self.pct(v)
 
     def pct(self, v):
         self.set_stream(StreamKey().percent, v)
+        return self
 
     def randomize(self):
         seed = random.Random().randint(0, sys.maxsize)
@@ -480,11 +484,11 @@ class Line(NoteGenerator):
         return self
 
     def with_index(self, v):
-        self.index(v)
-        return self
+        return self.index(v)
 
     def index(self, v):
         self.set_stream(StreamKey().index, v)
+        return self
 
 
     def setup_index_params_with_file(self, filename):
@@ -509,6 +513,7 @@ class NoteGeneratorThread(threading.Thread):
         self.sleep_interval = sleep_interval
         self.stop_event = threading.Event()
         self.thread = threading.Thread.__init__(self)
+        self.lock = threading.Lock()
         return
 
     def run(self):
@@ -529,22 +534,32 @@ class NoteGeneratorThread(threading.Thread):
                 # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
             # print("score time: " + str(score_time))
 
-            # for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
-            for note in [note for note in g.notes if
-                         float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (
-                                 score_time)]:
-                print(str(note))
-                n = note.split()
-                n[1] = '0.0'
-                new_note = '\t'.join(n)
-                cpt.inputMessage(new_note)
-
+            if(self.lock.locked() == False):
+                self.lock.acquire()
+                # for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
+                for note in [note for note in g.notes if
+                             float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (
+                                     score_time)]:
+                    # print(str(note))
+                    n = note.split()
+                    n[1] = '0.0'
+                    new_note = '\t'.join(n)
+                    cpt.inputMessage(new_note)
+                self.lock.release()
             arbitrary_score_time = score_time
             time.sleep(sleep_interval)
 
         self.stop_event.clear()
 
-    def update_generator(self, g):
-        # self.thread.lock()
+    def gen(self):
+        print(str(len(self.g.notes)) + " pre-copy.")
+        temp = self.g.deepcopy()
+        temp.generate_notes()
+        print(str(len(temp.notes)) + " generated. Copying...")
+        self.lock.acquire()
+        self.g.notes = temp.notes
+        self.lock.release()
+        print(str(len(self.g.notes)) + " post-copy.")
+
         pass
 
