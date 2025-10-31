@@ -10,7 +10,7 @@ You will also need to install Csound: https://csound.com/download.html
 
 # Tests and Getting Started
 
-May 2025: 
+October 2025: 
 
 To run the tests, cd into the tests directory and run the runUnitTests.sh:
 
@@ -19,7 +19,7 @@ To run the tests, cd into the tests directory and run the runUnitTests.sh:
 
 I'm currently overhauling the docs since adding the Line class, which is a step towards making Thuja more concise and therefore better in a live coding context.
 
-The /examples directory contains the best documentation to date. 
+The /examples directory contains the best documentation to date, and there's a verbose walkthrough of the thuja mental model in the doc folder. You might read that after reading this.
 
 # Overview
 
@@ -53,12 +53,11 @@ Declare an Itemstream playing a sequence of rhythms.
         tempo = 120,
         notetype = notetypes.rhythm)
 
-Side note on rhythm:
+Side notes on rhythm:
 
-While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. Dots can be added after as in traditional
-notation, and add half the value to the note. You can add rhythms as well i.e. q. == q+e. Numbers can be used in place
-of these symbols i.e. 32, 16 and 8 are all viable, and derive timing information from the tempo and the duration of a 
-whole note at that tempo. So, at 60 bpm, a q is 1 second (whole note is 4 seconds / 4) and s or 16 is .25 (whole note is 4 seconds / 16).
+- While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. 
+- Dots can be added after as in traditional notation, and add half the value to the note. You can add rhythms as well i.e. q. == q+e. 
+- Numbers can be used in place of these symbols i.e. 32, 16 and 8 are all viable, and derive timing information from the tempo and the duration of a whole note at that tempo. So, at 60 bpm, a q is 1 second (whole note is 4 seconds / 4) and s or 16 is .25 (whole note is 4 seconds / 16).
 
 We'll set amplitude to .5 for all generated notes. The Csound score will use this as a scalar (between 0 and 1) for loudness. 
 
