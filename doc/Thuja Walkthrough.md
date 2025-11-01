@@ -63,23 +63,14 @@ And a gross one.  You saw above that '32' was used for a 32nd note.  That number
 
 When you call generate_notes on a Generator, it kicks off a loop that will repeated ask each of the configured item streams for their next value (get_next_value).
 
+Observe this beautiful animation. 
+
+![IS3.png](walkthrough/IS.gif)
+
 We'll go through 5 iterations to illustrate what's happening. In this first iteration, you see we get the first item in each stream.
 
-![IS1.png](walkthrough/IS1.png)
-
 The second, we see that instr and dur are the same, but the second item from rhythm, amp and freq are returned.
-
-![IS2.png](walkthrough/IS2.png)
-
-On the third, we see the amp sequence is back at the beginning.
-
-![IS3.png](walkthrough/IS3.png)
-
-The fourth and fifth:
-
-![IS4.png](walkthrough/IS4.png)
-
-![IS5.png](walkthrough/IS5.png)
+On the third, we see the amp sequence is back at the beginning, and so on through the fourth and fifth iteration.
 
 
 And that's the foundation. It's a pretty simple lilbrary - you configure generators to emit these streams of data and bam: you have a score. There are lot of tweaks you can make to the behavior of Itemstreams, which is a concept borrowed from Rick Taube's Common Music library. You can randomize their values in different ways, and you can also say that one field is derived from the value of another, like the duration is always tied to the rhythm. Lots of possibilites, for behavior in the generator too. I've tried to just give the basic idea here.

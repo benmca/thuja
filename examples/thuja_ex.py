@@ -1,9 +1,6 @@
-from thuja.itemstream import notetypes
-from thuja.itemstream import streammodes
-from thuja.itemstream import Itemstream
+from thuja.itemstream import streammodes, notetypes, Itemstream
 from thuja.notegenerator import NoteGenerator
 from thuja.streamkeys import keys
-from thuja import csound_utils
 from collections import OrderedDict
 
 rhythms = Itemstream(['e.', 'e.', 'e', 'q.', 'e', 'q.', 'e', 'h'],
