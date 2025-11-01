@@ -391,8 +391,7 @@ class Line(NoteGenerator):
             self.streams[k] = Itemstream(v)
 
     def with_rhythm(self, v):
-        self.rhythms(v)
-        return self
+        return self.rhythms(v)
 
     # for brevity, pfield setters
     # 2024.05.27: for rhythms, I added this safeguard since I seem to forget to set all the things for rhythms to

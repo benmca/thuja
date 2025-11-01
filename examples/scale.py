@@ -1,30 +1,24 @@
-from thuja.itemstream import notetypes
-from thuja.itemstream import Itemstream
-from thuja.notegenerator import NoteGenerator
-from thuja.streamkeys import keys
+from thuja.itemstream import notetypes, Itemstream
+from thuja.notegenerator import Line
 from thuja import csound_utils
-from collections import OrderedDict
 
 rhythms = Itemstream("s e s q".split(),
                      tempo=60,
                      notetype=notetypes.rhythm)
 
-pitches = Itemstream("c5 d e f g a b".split(),
+pitches = Itemstream("c4 d e f g a b c5".split(),
                      notetype=notetypes.pitch)
 
-g = NoteGenerator(
-    streams=OrderedDict([
-        (keys.instrument, 1),
-        (keys.rhythm, rhythms),
-        (keys.duration, .1),
-        (keys.amplitude, Itemstream(".5 .25".split())),
-        (keys.frequency, pitches),
-    ]),
-    note_limit=(len(pitches.values)*4),
-    gen_lines=[';sine', 'f 1 0 16384 10 1']
+g = (
+    Line().with_instr(1)
+    .with_rhythm(rhythms)
+    .with_duration(.1)
+    .with_amps(Itemstream(".5 .25".split()))
+    .with_freqs(pitches)
 )
 
+g.note_limit = len(pitches.values) * 4
+g.gen_lines = ['f 1 0 16384 10 1']
+
 g.generate_notes()
-score_string = g.generate_score_string()
-print(score_string)
-csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-ex.wav', '-W'])
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-odac0'])

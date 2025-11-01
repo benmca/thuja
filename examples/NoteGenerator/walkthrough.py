@@ -11,7 +11,6 @@ rhythms = Itemstream("s e s q".split(),
 pitches = Itemstream("a3 b c4 d e".split(),
                      notetype=notetypes.pitch)
 
-
 g = NoteGenerator(
     streams=OrderedDict([
         (keys.instrument, 1),
@@ -25,7 +24,4 @@ g = NoteGenerator(
 )
 
 g.generate_notes()
-# score_string = g.generate_score_string()
-# print(score_string)
-
 csound_utils.play_csound("sine.orc", g, args_list=['-odac0', 'W'])

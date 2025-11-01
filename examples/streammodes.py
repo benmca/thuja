@@ -1,10 +1,7 @@
-from thuja.itemstream import notetypes
-from thuja.itemstream import streammodes
-from thuja.itemstream import Itemstream
-from thuja.notegenerator import NoteGenerator
+from thuja.itemstream import notetypes, Itemstream, streammodes
 from thuja.streamkeys import keys
+from thuja.notegenerator import Line
 from thuja import csound_utils
-from collections import OrderedDict
 
 rhythms = Itemstream("q e. s s s s. 32".split(),
                      tempo=80,
@@ -13,30 +10,30 @@ rhythms = Itemstream("q e. s s s s. 32".split(),
 pitches = Itemstream("c5 d e f g a b".split(),
                      notetype=notetypes.pitch)
 
-g = NoteGenerator(
-    streams=OrderedDict([
-        (keys.instrument, 1),
-        (keys.rhythm, rhythms),
-        (keys.duration, .1),
-        (keys.amplitude, 1),
-        (keys.frequency, pitches),
-    ]),
-    note_limit=(len(pitches.values)*4),
-    gen_lines=[';sine', 'f 1 0 16384 10 1']
+
+g = (
+    Line().with_instr(1)
+    .with_rhythm(rhythms)
+    .with_duration(.1)
+    .with_amps(1)
+    .with_freqs(pitches)
 )
+
+g.note_limit = len(pitches.values) * 4
+g.gen_lines = ['f 1 0 16384 10 1']
 
 g.generate_notes()
 print('rhythms in sequence')
-csound_utils.play_csound("sine.orc", g, silent=True)
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-odac0'])
 g.clear_notes()
 
 g.streams[keys.rhythm].streammode = streammodes.heap
 g.generate_notes()
 print('rhythms in heap')
-csound_utils.play_csound("sine.orc", g, silent=True)
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-odac0'])
 g.clear_notes()
 
 g.streams[keys.rhythm].streammode = streammodes.random
 g.generate_notes()
 print('rhythms in random')
-csound_utils.play_csound("sine.orc", g, silent=True)
+csound_utils.play_csound("sine.orc", g, silent=True, args_list=['-odac0'])
