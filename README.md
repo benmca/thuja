@@ -41,7 +41,7 @@ In Thuja, **Itemstreams** define sequences of p-field values as notes are genera
     from thuja.notegenerator import Line
     from thuja import csound_utils
 
-Declare an Itemstream playing a sequence of rhythms. 
+Declare an Itemstream playing a sequence of rhythms. When constructing a list of values for an Itemstream, you can use any method you like. I like to use split and concatenation to keep the ideas readable.  
 
     rhythms = Itemstream('s s s s e e'.split(),
                          streammode=streammodes.sequence,
@@ -58,14 +58,9 @@ We'll set amplitude to 1 for all generated notes. The Csound score will use this
 
 	amps = Itemstream(1)
 
-Define a string of pitches using [scientific pitch notation](https://en.wikipedia.org/wiki/Scientific_pitch_notation). **Chords are nested lists.** 'r' denotes a rest in a stream of notes.
+Define a string of pitches using [scientific pitch notation](https://en.wikipedia.org/wiki/Scientific_pitch_notation). **Chords are nested lists.** 'r' denotes a rest in a stream of notes. 
+Octaves stick until a new octave number is used.
 
-    #
-    # When constructing a list of values for an itemstream, you can use any method you like.
-    #  I like to use split and concatenation to keep the ideas readable.  This will yield:
-    #  ['a2', 'b', 'c3', 'e', 'a2', 'r', 'e2', 'f', 'r', 'b', ['e', 'b'], ['e', 'b'], 
-    #  'a2', 'c3', 'c', 'c', 'd', 'd', 'd', 'e', 'r', 'e', ['e', 'b'], ['e', 'b']]
-    #
     pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
                          + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
         streammode=streammodes.sequence,
@@ -82,7 +77,6 @@ This generator sets default values in the NoteGenerator constructor for instrume
 Under the covers, this creates a single item ItemStream for each of these fields as we did for amps, above.
 
 ```
-
 g = (
     Line().with_instr(2)
     .with_rhythm(rhythms)
