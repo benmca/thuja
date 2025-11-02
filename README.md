@@ -8,9 +8,7 @@ The `requirements.txt` file includes the additional python libraries that need t
 
 You will also need to install Csound: https://csound.com/download.html
 
-# Tests and Getting Started
-
-October 2025: 
+# Tests
 
 To run the tests, cd into the tests directory and run the runUnitTests.sh:
 
@@ -21,9 +19,9 @@ I'm currently overhauling the docs since adding the Line class, which is a step 
 
 The /examples directory contains the best documentation to date, and there's a verbose walkthrough of the thuja mental model in the doc folder. You might read that after reading this.
 
-# Overview
+# Getting Started
 
-Thuja is built on a two simple classes that deliver a ton of flexibility in composing Csound score files.
+It's assumed you know python and [Csound](https://csound.com). [The Hello Csound tutorial from the FLOSS Manual](https://flossmanual.csound.com/get-started/GS-01)  is a good way to get up and running. We won't use any of the Csound front-ends - just '[plain csound](https://flossmanual.csound.com/how-to/installation)'.  Thuja is a python library for static and realtime / live coding. At it's core are two simple classes that deliver a ton of flexibility in composing Csound score files.
 
 - **Itemstreams** define values for any pfield in a Csound score event.
 - **Generators** are collections of Itemstreams and configuration info driving Csound score creation.
@@ -39,44 +37,42 @@ In Csound, notes have at a minimum an instrument, start time, and duration as th
 
 In Thuja, **Itemstreams** define sequences of p-field values as notes are generated. They can be configured to model certain compositional thinking, such as repeating, varying a sequence of values, reordering them, etc. 
 
-    from thuja.itemstream import notetypes
-    from thuja.itemstream import streammodes
-    from thuja.itemstream import Itemstream
-    from thuja.notegenerator import NoteGenerator
-    from thuja.streamkeys import keys
-    from collections import OrderedDict
+    from thuja.itemstream import streammodes, notetypes, Itemstream
+    from thuja.notegenerator import Line
+    from thuja import csound_utils
 
 Declare an Itemstream playing a sequence of rhythms. 
 
-    rhythms = Itemstream(['e.', 'e.', 'e', 'q.', 'e', 'q.', 'e', 'h'],
-        streammode = streammodes.sequence,
-        tempo = 120,
-        notetype = notetypes.rhythm)
-
+    rhythms = Itemstream('s s s s e e'.split(),
+                         streammode=streammodes.sequence,
+                         tempo=120,
+                         notetype=notetypes.rhythm)
+    
 Side notes on rhythm:
 
 - While float values are valid, Thuja defines a simple shorthand for rhythmic values: w, h, e, q and s are whole-, half-, quarter-, eighth- and sixteenth notes. 
 - Dots can be added after as in traditional notation, and add half the value to the note. You can add rhythms as well i.e. q. == q+e. 
 - Numbers can be used in place of these symbols i.e. 32, 16 and 8 are all viable, and derive timing information from the tempo and the duration of a whole note at that tempo. So, at 60 bpm, a q is 1 second (whole note is 4 seconds / 4) and s or 16 is .25 (whole note is 4 seconds / 16).
 
-We'll set amplitude to .5 for all generated notes. The Csound score will use this as a scalar (between 0 and 1) for loudness. 
+We'll set amplitude to 1 for all generated notes. The Csound score will use this as a scalar (between 0 and 1) for loudness. 
 
-	amps = Itemstream([.5])
+	amps = Itemstream(1)
 
-Define a string of pitches using pitch-class notation. Chords are nested lists. 
-This stream is in heap mode, meaning no value will repeat until all others have been used.
-'r' denotes a rest in a stream of notes.
+Define a string of pitches using [scientific pitch notation](https://en.wikipedia.org/wiki/Scientific_pitch_notation). **Chords are nested lists.** 'r' denotes a rest in a stream of notes.
 
-	pitches = Itemstream(sum([
-	    ['c4', 'r', 'r','d','c5','c','c','d'],
-	    ['c3','e',['c','e','g'],'c4','r',['c','e','g']],
-	    [['c','e','g'],['c','e','g'],['c','d','e'],['e','f','g']],
-	    ],[]),
-	    streammode=streammodes.heap,
-	    notetype=notetypes.pitch
-	)
+    #
+    # When constructing a list of values for an itemstream, you can use any method you like.
+    #  I like to use split and concatenation to keep the ideas readable.  This will yield:
+    #  ['a2', 'b', 'c3', 'e', 'a2', 'r', 'e2', 'f', 'r', 'b', ['e', 'b'], ['e', 'b'], 
+    #  'a2', 'c3', 'c', 'c', 'd', 'd', 'd', 'e', 'r', 'e', ['e', 'b'], ['e', 'b']]
+    #
+    pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
+                         + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
+        streammode=streammodes.sequence,
+        notetype=notetypes.pitch
+    )
 
-Define a Generator which will generate notes like so: 
+The Line class, derived from Generator, adds some convenience methods, and defaults to these pfields for generated notes:
 
     #instr	start	dur		amp		freq	pan		distance	percent
     #p1		p2		p3		p4		p5		p6		p7			p8	
@@ -84,36 +80,37 @@ Define a Generator which will generate notes like so:
 
 This generator sets default values in the NoteGenerator constructor for instrument, duration, pan, distance and percent.  
 Under the covers, this creates a single item ItemStream for each of these fields as we did for amps, above.
+
 ```
-g = NoteGenerator(
-    streams=OrderedDict([
-        (keys.instrument, 1),
-        (keys.rhythm, rhythms),
-        (keys.duration, .1),
-        (keys.amplitude, amps),
-        (keys.frequency, pitches),
-        (keys.pan, 45),
-        (keys.distance, 10),
-        (keys.percent, .1)
-    ]),
-    note_limit=(len(pitches.values)*4),
-    gen_lines = [';sine\n',
-               'f 1 0 16384 10 1\n',
-               ';saw',
-               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
-               ';pulse\n',
-               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
+
+g = (
+    Line().with_instr(2)
+    .with_rhythm(rhythms)
+    .with_duration(.1)
+    .with_amps(1)
+    .with_freqs(pitches)
+    .with_pan(45)
+    .with_dist(10)
+    .with_percent(.1)
 )
+
+g.note_limit = len(pitches.values) * 4
+g.gen_lines = [';sine\n',
+             'f 1 0 16384 10 1\n',
+             ';saw',
+             'f 2 0 256 7 0 128 1 0 -1 128 0\n',
+             ';pulse\n',
+             'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
 
 g.generate_notes()
 ```
 
 Add a note for reverb:
 
-	g.end_lines = ['i99 0 ' + str(g.score_dur+10) + '\n']
+    g.end_lines = ['i99 0 ' + str(g.score_dur + 10) + '\n']
 
 
-This example is found in the examples folder, called thuja.py. 
+This example is found in the examples folder, called thuja_ex.py. 
 
 
 # Thuja.itemstream
