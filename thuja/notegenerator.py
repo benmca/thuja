@@ -88,9 +88,23 @@ class NoteGenerator:
         self.pfields = pfields
         return self
 
+    # replicates Generator, not children
     def deepcopy(self):
         result = copy.deepcopy(self)
-        result.generators = None
+        result.generators = []
+        result.streams = OrderedDict()
+        for k, v in self.streams.items():
+            # setattr(result, k, deepcopy(v, memo))
+            result.streams.__setitem__(k, copy.deepcopy(v))
+        if self.context is not None:
+            for k, v in self.context.items():
+                # setattr(result, k, deepcopy(v, memo))
+                result.context.__setitem__(k, copy.deepcopy(v))
+        return result
+
+    # replicates Generator, includes children
+    def deepcopy_tree(self):
+        result = copy.deepcopy(self)
         result.streams = OrderedDict()
         for k, v in self.streams.items():
             # setattr(result, k, deepcopy(v, memo))
@@ -569,12 +583,12 @@ class NoteGeneratorThread(threading.Thread):
 
     def gen(self):
         print(str(len(self.g.notes)) + " pre-copy.")
-        temp = self.g.deepcopy()
+        temp = self.g.deepcopy_tree()
         temp.generate_notes()
         print(str(len(temp.notes)) + " generated. Copying...")
         self.lock.acquire()
         self.g.notes = temp.notes
         self.lock.release()
         print(str(len(self.g.notes)) + " post-copy.")
-        print(self.g.generate_score_string())
+        # print(self.g.generate_score_string())
 
