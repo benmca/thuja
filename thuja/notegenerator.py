@@ -94,6 +94,10 @@ class NoteGenerator:
         for k, v in self.streams.items():
             # setattr(result, k, deepcopy(v, memo))
             result.streams.__setitem__(k, copy.deepcopy(v))
+        if self.context is not None:
+            for k, v in self.context.items():
+                # setattr(result, k, deepcopy(v, memo))
+                result.context.__setitem__(k, copy.deepcopy(v))
         return result
 
     def update_stream(self, key, stream):
@@ -219,6 +223,9 @@ class NoteGenerator:
                     rhythm = self.streams[keys.rhythm].get_next_value()
                     self.cur_time = self.cur_time + rhythm
                     note.rhythm = rhythm
+                else:
+                    # rhythm will likely be set by a post_process
+                    pass
             else:
                 # 2025.03.12 Trying to set rhythm in chording scenarioes, so that post_processes or callables can refer to rhythm.
                 # ..adapted from Itemstream.get next value.
@@ -252,11 +259,15 @@ class NoteGenerator:
 
             # the note is fully initialized. Run the list of post process in order.
             for item in self.post_processes:
+                rhythm_not_set = (note.rhythm == None)
                 if callable(item):
                     if len(funcsigs.signature(item).parameters) > 1:
                         item(note, self.context)
                     else:
                         item(note)
+                if rhythm_not_set:
+                    assert note.rhythm is not None
+                    self.cur_time = self.cur_time + note.rhythm
 
             # 2025.03.31: moving this back to precede post_processing
             #           legacy comments below:
@@ -340,6 +351,10 @@ class NoteGenerator:
         for s in self.streams.values():
             if isinstance(s, Itemstream):
                 s.set_seed(seed)
+        if self.context is not None:
+            for s in self.context.values():
+                if isinstance(s, Itemstream):
+                    s.set_seed(seed)
 
 
 class Line(NoteGenerator):
@@ -349,7 +364,7 @@ class Line(NoteGenerator):
         self.streams=OrderedDict([
             (keys.instrument, Itemstream([1])),
             (keys.duration, Itemstream([1])),
-            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            # (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
             (keys.amplitude, Itemstream([1])),
             (keys.frequency, Itemstream([1])),
             (keys.pan, Itemstream([45])),
@@ -480,7 +495,6 @@ class Line(NoteGenerator):
     def randomize(self):
         seed = random.Random().randint(0, sys.maxsize)
         self.set_streams_to_seed(seed)
-        print(str(seed))
         return self
 
     def with_index(self, v):
@@ -546,6 +560,7 @@ class NoteGeneratorThread(threading.Thread):
                     new_note = '\t'.join(n)
                     cpt.inputMessage(new_note)
                 self.lock.release()
+
             arbitrary_score_time = score_time
             time.sleep(sleep_interval)
 
@@ -560,6 +575,5 @@ class NoteGeneratorThread(threading.Thread):
         self.g.notes = temp.notes
         self.lock.release()
         print(str(len(self.g.notes)) + " post-copy.")
-
-        pass
+        print(self.g.generate_score_string())
 

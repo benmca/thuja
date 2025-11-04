@@ -2,7 +2,7 @@ In this walkthrough, I'm going to focus on generating some simple notes that are
 
 This whole thing right now is predicated on you knowing some python and knowing a little bit about Csound. [The Hello Csound tutorial from the FLOSS Manual](https://flossmanual.csound.com/get-started/GS-01)  is a good way to get up and running. We won't use any of the Csound front-ends - just '[plain csound](https://flossmanual.csound.com/how-to/installation)'.  Thuja is a python library for static and realtime / live coding. 
 
-Thuja relies on a few concepts to generate sounds. 
+Thuja relies on a few concepts to generate sounds.  We'll walkthrough what's happening in examples/overview.py.
 
 # Generator
 
@@ -16,7 +16,7 @@ The Generator: it's the thing that generates the notes. As we all know, playing 
 
 You can extend this idea infinitely, and add all kinds of fields. I often have 3 fields to define stereo panning betweeen my speakers, distance from the listener, and amount of the note to send to a reverb.
 
-![gen1.png](walkthrough/gen1.png)
+![gen1.png](img/gen1.png)
 
 So we know what we're going to generate - notes with 5 fields: Instr, Start Time, Duration, Amplitude, Pitch.
 
@@ -24,7 +24,7 @@ The fun part begins. The way generators work is: in a loop, they get asked for t
 
 # Itemstreams
 
-![is1](walkthrough/Thuja%20Explainer%20-%20ItemStream.png)
+![is1](img/Thuja%20Explainer%20-%20ItemStream.png)
 
 In the simplest case, an itemstream is a sequence of data that a generator uses to get values for a field in a note. 
 
@@ -36,27 +36,35 @@ For the instrument and duration, it's just gonna keep spitting out 1. Since inst
 
 ### Pitches 
 
-![spn.png](walkthrough/spn.png)
+![spn.png](img/spn.png)
 
 Pitches are notated using scientific pitch notation, pictured here. 
 
+	pitches = Itemstream('a2 a e3 a2 g'.split(),
+	    streammode=streammodes.sequence,
+	    notetype=notetypes.pitch
+	)
 
 ### Rhythm
 
 
 Ok now rhythm. Think about playing a rhythm for a minute, something simple - just a stream of eighth-notes, let's say.  bum bum bum bum. Each note has a start time and when you're playing, you know when the next one is supposed to start. When you're computing these things, you need to know what rhythmic value you're playing.  To explain this briefly, just trust me that at 60 bpm, an eighth note is .5 seconds. If I say I'm going to play 4 eighth notes starting at time 0, you can tell me when each will start (0, .5, 1, 1.5). That's the gist.  See the main docs and examples for more explanation 
 
+	rhythms = Itemstream('s s e q'.split(),
+	                     streammode=streammodes.sequence,
+	                     notetype=notetypes.rhythm)
+
 Here's each possibility:
 
-![thuja-sibelius1.png](walkthrough/thuja-sibelius1.png)
+![thuja-sibelius1.png](img/thuja-sibelius1.png)
 
 Here's a simple example:
 
-![thuja-sibelius2.png](walkthrough/thuja-sibelius2.png)
+![thuja-sibelius2.png](img/thuja-sibelius2.png)
 
 And a gross one.  You saw above that '32' was used for a 32nd note.  That number refers to a fraction of the note relative to a quarter note's duration, and *any* number can be used, like 12 to make a triplet.  When you're using a number for tuplets, you can think of them as a fraction of a bar of 4/4 - there are 12 triplet eighth-notes in a bar of 4/4. Complicated I know, but it's the solution I landed on.  
 
-![thuja-sibelius3.png](walkthrough/thuja-sibelius3.png)
+![thuja-sibelius3.png](img/thuja-sibelius3.png)
 
 
 ## Generating notes
@@ -65,7 +73,7 @@ When you call generate_notes on a Generator, it kicks off a loop that will repea
 
 Observe this beautiful animation. 
 
-![IS3.png](walkthrough/IS.gif)
+![IS3.png](img/IS.gif)
 
 We'll go through 5 iterations to illustrate what's happening. In this first iteration, you see we get the first item in each stream.
 
@@ -73,6 +81,8 @@ The second, we see that instr and dur are the same, but the second item from rhy
 On the third, we see the amp sequence is back at the beginning, and so on through the fourth and fifth iteration.
 
 
-And that's the foundation. It's a pretty simple lilbrary - you configure generators to emit these streams of data and bam: you have a score. There are lot of tweaks you can make to the behavior of Itemstreams, which is a concept borrowed from Rick Taube's Common Music library. You can randomize their values in different ways, and you can also say that one field is derived from the value of another, like the duration is always tied to the rhythm. Lots of possibilites, for behavior in the generator too. I've tried to just give the basic idea here.
+And that's the foundation. It's a pretty simple lilbrary - you configure generators to emit these streams of data and bam: you have a score. There are lot of tweaks you can make to the behavior of Itemstreams, which is a concept borrowed from Rick Taube's Common Music library. You can randomize their values in different ways, and you can also say that one field is derived from the value of another, like the duration is always tied to the rhythm. Lots of possibilites, for behavior in the generator too. I give the basic idea here, but you'll see in the examples and tutorials that there's a lot you can do with very little.
 
 In the examples, you'll see a few flavors of a Generator, mainly one called a "Line", but they are there as a convenience to make the Generators fit for different purposes. 
+
+
