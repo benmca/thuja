@@ -90,6 +90,7 @@ class NoteGenerator:
 
     def deepcopy(self):
         result = copy.deepcopy(self)
+        result.generators = None
         result.streams = OrderedDict()
         for k, v in self.streams.items():
             # setattr(result, k, deepcopy(v, memo))
