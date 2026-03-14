@@ -128,6 +128,10 @@ Children inherit parent's timing constraints (start_time, time_limit, note_limit
 - `tests/`: Unit tests covering itemstreams, generators, utils
 - `doc/`: Contains `Overview.md` with verbose walkthrough of the mental model
 
+## Change History
+
+- **[HISTORY.md](HISTORY.md)**: Significant changes, decisions, and context behind work done on this codebase. Updated each session.
+
 ## Experimental / Proposals
 
 - **[LinkFollowerProposal.md](LinkFollowerProposal.md)**: Architecture proposal for syncing NoteGeneratorThread to Ableton Link. Thuja follows Link tempo; Phase 2 adds quantized regeneration at beat/bar boundaries.
