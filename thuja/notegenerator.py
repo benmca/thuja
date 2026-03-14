@@ -118,6 +118,19 @@ class NoteGenerator:
         self.streams[key] = stream
         return self
 
+    def set_stream(self, k, v):
+        if isinstance(v, Itemstream):
+            self.streams[k] = v
+        elif isinstance(v, str):
+            self.streams[k] = Itemstream(v.split())
+        elif isinstance(v, list):
+            self.streams[k] = Itemstream(v)
+        elif callable(v):
+            self.streams[k] = v
+        else:
+            # assume this is a single item and pass value through to ItemStream
+            self.streams[k] = Itemstream(v)
+
     def generate_score(self, filename=None):
         self.note_count = 0
         self.notes = []
@@ -413,20 +426,6 @@ class Line(NoteGenerator):
                                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
         self.note_limit = 0
 
-
-    def set_stream(self, k, v):
-        if isinstance(v, Itemstream):
-            self.streams[k] = v
-        elif isinstance(v, str):
-            self.streams[k] = Itemstream(v.split())
-        elif isinstance(v, list):
-            self.streams[k] = Itemstream(v)
-        elif callable(v):
-            self.streams[k] = v
-
-        else:
-            # assume this is an single item string and pass value through to ItemStream
-            self.streams[k] = Itemstream(v)
 
     def with_rhythm(self, v):
         return self.rhythms(v)

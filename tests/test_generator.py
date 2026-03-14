@@ -326,6 +326,30 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_set_stream_itemstream(self):
+        # set_stream() should be available on NoteGenerator, not just Line
+        g = NoteGenerator(streams=OrderedDict([(keys.instrument, Itemstream([1]))]))
+        stream = Itemstream([2])
+        g.set_stream(keys.instrument, stream)
+        self.assertIs(g.streams[keys.instrument], stream)
+
+    def test_set_stream_string(self):
+        g = NoteGenerator(streams=OrderedDict([(keys.instrument, Itemstream([1]))]))
+        g.set_stream(keys.instrument, '1 2 3')
+        self.assertIsInstance(g.streams[keys.instrument], Itemstream)
+        self.assertEqual(g.streams[keys.instrument].values, ['1', '2', '3'])
+
+    def test_set_stream_list(self):
+        g = NoteGenerator(streams=OrderedDict([(keys.instrument, Itemstream([1]))]))
+        g.set_stream(keys.instrument, [1, 2, 3])
+        self.assertIsInstance(g.streams[keys.instrument], Itemstream)
+
+    def test_set_stream_callable(self):
+        g = NoteGenerator(streams=OrderedDict([(keys.duration, Itemstream([1]))]))
+        fn = lambda note: note.rhythm * 2
+        g.set_stream(keys.duration, fn)
+        self.assertTrue(callable(g.streams[keys.duration]))
+
     def test_g_on_note_generator(self):
         # g() should be available on NoteGenerator, not just Line
         g = NoteGenerator(streams=OrderedDict([
