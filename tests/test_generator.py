@@ -326,6 +326,27 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_g_on_note_generator(self):
+        # g() should be available on NoteGenerator, not just Line
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([1])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=4)
+        result = g.g()
+        self.assertIs(result, g)
+        self.assertEqual(len(g.notes), 4)
+
+    def test_randomize_on_note_generator(self):
+        # randomize() should be available on NoteGenerator, not just Line
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([1])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=4)
+        result = g.randomize()
+        self.assertIs(result, g)
+
     def test_get_tempo_on_note_generator(self):
         # Regression test for issue #14: NoteGenerator.tempo() renamed to get_tempo()
         # to avoid collision with Line.tempo(x) fluent setter.
