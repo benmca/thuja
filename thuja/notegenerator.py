@@ -361,6 +361,15 @@ class NoteGenerator:
     def get_tempo(self):
         return self.streams[keys.rhythm].tempo
 
+    def randomize(self):
+        seed = random.Random().randint(0, sys.maxsize)
+        self.set_streams_to_seed(seed)
+        return self
+
+    def g(self):
+        self.generate_notes()
+        return self
+
     def set_streams_to_seed(self, seed):
         for s in self.streams.values():
             if isinstance(s, Itemstream):
@@ -506,11 +515,6 @@ class Line(NoteGenerator):
         self.set_stream(StreamKey().percent, v)
         return self
 
-    def randomize(self):
-        seed = random.Random().randint(0, sys.maxsize)
-        self.set_streams_to_seed(seed)
-        return self
-
     def with_index(self, v):
         return self.index(v)
 
@@ -525,10 +529,6 @@ class Line(NoteGenerator):
         self.set_stream('fade_in', .0001)
         self.set_stream('fade_out', .01)
         self.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
-        return self
-
-    def g(self):
-        self.generate_notes()
         return self
 
 
