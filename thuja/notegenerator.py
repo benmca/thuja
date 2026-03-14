@@ -471,7 +471,7 @@ class Line(NoteGenerator):
 
     def pitches(self, v):
         if isinstance(v, str) or isinstance(v, list):
-            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=Notetypes().pitch))
+            self.set_stream(StreamKey().frequency, Itemstream(v, notetype=notetypes.pitch))
         elif isinstance(v, Itemstream):
             v.notetype = notetypes.pitch
             self.set_stream(StreamKey().frequency, v)
