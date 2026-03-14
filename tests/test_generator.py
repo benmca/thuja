@@ -326,6 +326,19 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_setup_index_params(self):
+        # Regression test for issue #18: setup_index_params_with_file() extracted
+        # from Line to utils.setup_index_params(generator, filename).
+        line = Line().with_rhythm('q').with_pitches('c4')
+        utils.setup_index_params(line, '/path/to/file.wav')
+        self.assertIn('orig_rhythm', line.streams)
+        self.assertIn('inst_file', line.streams)
+        self.assertIn('fade_in', line.streams)
+        self.assertIn('fade_out', line.streams)
+        self.assertIn(keys.index, line.pfields)
+        self.assertIn('orig_rhythm', line.pfields)
+        self.assertIn('inst_file', line.pfields)
+
     def test_set_stream_itemstream(self):
         # set_stream() should be available on NoteGenerator, not just Line
         g = NoteGenerator(streams=OrderedDict([(keys.instrument, Itemstream([1]))]))

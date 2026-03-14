@@ -522,13 +522,6 @@ class Line(NoteGenerator):
         return self
 
 
-    def setup_index_params_with_file(self, filename):
-        self.set_stream('orig_rhythm', .01)
-        self.set_stream('inst_file', ['\"' + filename + '\"'])
-        self.set_stream('fade_in', .0001)
-        self.set_stream('fade_out', .01)
-        self.pfields += [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']
-        return self
 
 
 class NoteGeneratorThread(threading.Thread):
