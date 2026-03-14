@@ -79,10 +79,9 @@ class NoteGenerator:
     def with_streams(self, streams):
         if isinstance(streams, OrderedDict):
             self.streams = streams
-        if streams is None:
-            pass
-        else:
+        elif streams is not None:
             self.streams = OrderedDict(streams)
+        return self
 
     def with_pfields(self, pfields):
         self.pfields = pfields
