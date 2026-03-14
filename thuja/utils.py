@@ -264,3 +264,18 @@ def dur_of_quarter(tempo):
 def quarter_duration_to_tempo(dur):
     return 60 * (1/dur)
 
+def setup_index_params(generator, filename):
+    """
+    Configures a generator for index-based sample playback by adding the
+    standard pfields used with index-style Csound instruments: index,
+    orig_rhythm, inst_file, fade_in, and fade_out.
+    """
+    from thuja.streamkeys import keys
+    generator.set_stream('orig_rhythm', .01)
+    generator.set_stream('inst_file', ['"' + filename + '"'])
+    generator.set_stream('fade_in', .0001)
+    generator.set_stream('fade_out', .01)
+    for field in [keys.index, 'orig_rhythm', 'inst_file', 'fade_in', 'fade_out']:
+        if field not in generator.pfields:
+            generator.pfields.append(field)
+
