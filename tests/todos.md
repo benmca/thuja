@@ -1,162 +1,134 @@
 # Test Coverage Gaps - Thuja
 
-This document identifies features in the Thuja codebase that lack test coverage.
+This document tracks outstanding test coverage gaps. Items are removed as tests are written.
 
-**NOTE:** After analyzing real compositions in `../csound-pieces/thuja-ep/`, many of these "untested" features are HEAVILY USED in practice. This makes regression testing even more critical.
+**NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-## Major Untested Features
+Last updated: 2026-03-14
 
-### **Itemstream**
-1. **Streammode 'random'** - Only 'sequence' and 'heap' are tested, but 'random' mode exists
-2. **Chording (nested lists)** - The README and docs mention chord notation like `['e', 'b']` but there are no tests for this critical feature
-3. **Rests ('r')** - Documented in README but never tested
-4. **Path notetype** - Exists in code (itemstream.py:153-155, 213-215) but completely untested
-5. **Tempo as callable** - Code supports `callable(self.tempo)` (itemstream.py:224-226) but not tested
-6. **Tempo as list** - Tested in generators, but not isolated Itemstream behavior
-7. **set_seed() method** - Exists for reproducibility but not tested
-8. **Octave persistence** - Documented behavior where octave persists between pitches (e.g., 'c4 d e' → c4, d4, e4)
-9. **String input handling** - Constructor handles space-delimited strings but not tested
+---
 
-### **NoteGenerator Core**
-1. **Time limits** - `time_limit` and `generator_dur` attributes exist but are never tested
-2. **Child generator inheritance** - Test exists but doesn't assert anything:
-   ```python
-   def test_child_generators(self):
-       # ... creates generators ...
-       melody_left.add_generator(melody_right)
-       pass  # No assertions!
-   ```
-3. **deepcopy() method** - Documented in CLAUDE.md as important (doesn't copy children) but not tested
-4. **deepcopy_tree() method** - Copies including children, not tested
-5. **generate_score() with file output** - Has filename parameter but only string generation is tested
-6. **clear_notes() method** - Not tested
-7. **add_bars_to_starttime()** - Musical time calculation helper, not tested
-8. **UDP methods** - `send_gens_to_udp()` and `send_notes_to_udp()` completely untested
-9. **set_streams_to_seed()** - Propagates seeds to all streams for reproducibility, not tested
-10. **Context with 2-parameter post_processes** - Code checks for `funcsigs.signature()` to handle `(note, context)` but only single-param tested
+## Already Covered
 
-### **Line Class**
-The entire fluent API is essentially untested:
-- All `with_*` methods (with_instr, with_duration, with_amps, with_pitches, with_freqs, with_pan, with_dist, with_percent, with_tempo, with_index)
-- `randomize()` - Sets random seed across all streams
-- `setup_index_params_with_file()` - Configures for audio file playback
-- `g()` - Shorthand for `generate_notes()`
+The following were gaps at the start of the `thuja-language` session and are now tested:
 
-### **NoteGeneratorThread**
-The entire threading/real-time class (notegenerator.py:536-595) is completely untested
+- `time_limit` — stops generation, zero means no limit, all notes within boundary
+- `deepcopy()` — streams independent, children cleared, original unaffected, context independent
+- `deepcopy_tree()` — children included
+- Chording — simultaneous notes at same start_time, time advances once per chord
+- Child generator inheritance — inherits time_limit, note_limit, start_time offset, notes sorted
+- `set_stream()` — Itemstream, string, list, callable coercion
+- `with_streams()` — OrderedDict, plain dict, returns self
+- Mutable default args (#13)
+- `get_tempo()` / `Line.tempo()` setter (#14)
+- `g()` and `randomize()` on NoteGenerator (#16)
+- `Line.pitches()` string/list/Itemstream (#12)
+- `setup_index_params()` utility (#18)
+- Tuple streams — dict-of-dicts form (`test_callables`)
+- `gen_lines` and `end_lines` — implicit in `test_tempo`, `test_literals`
+- Tempo as list — `np.linspace(...)` in `test_tempo`
+- Heap streammode — basic usage in `test_literals`
+- Lambda on duration — `test_callables_lambda`, `test_child_generators`
+- Multiple `generate_notes()` calls — `test_tempo` and `test_literals` both call it twice
 
-### **csound_utils**
-All Csound integration is untested:
-- `init_csound_with_orc()`
-- `init_csound_with_csd()`
-- `play_csound()`
+---
 
-### **Event Class**
-Never directly tested (only used implicitly in generators)
+## Outstanding Gaps
 
-## Critical Missing Tests (High Priority)
+### Extremely Critical (55+ files in csound-pieces)
 
-Based on analysis of ~60 real compositions in `csound-pieces/thuja-ep/`:
+**1. Explicit 2-param `(note, context)` post_process signature**
+`test_callables_postprocesses` uses a 1-param closure that accesses `g.context` directly via closure — it does NOT exercise the `def pp(note, context):` injection path that `funcsigs` signature detection handles. This is the dominant pattern across 55 files.
+- Need: post_process defined as `def pp(note, context):`, verify context is injected and mutations persist across notes.
 
-### **EXTREMELY CRITICAL - Used in Nearly Every Piece:**
+**2. Context dict persistence and mutation across notes**
+No test verifies that `context["counter"] += 1` in a post_process accumulates correctly across N notes — i.e., the same dict is threaded through every call.
+- Need: post_process increments a counter, assert final value equals note count.
 
-1. **time_limit** - Used in almost EVERY piece examined (pitch_generation.py:44, index_study_1_respiration.py:139/157/164/171, etc.)
-   - Currently NO tests verify time_limit stops generation correctly
-   - This is a primary compositional tool
+---
 
-2. **deepcopy()** - Used extensively for creating variations (index_study_1_respiration.py:141/147/159, 2024.05.27.py:64/75)
-   - Critical for composition workflow
-   - NO tests verify it actually works or that children are excluded
+### Very Common (20–42 files)
 
-3. **Chording (nested lists)** - chapel_october_2022_chorale.py:79 uses `[['c','e','g'],['f','a','c'],...]`
-   - Zero test coverage despite being a documented, used feature
+**3. `streammode=random`**
+33 files use it. Only `sequence` and `heap` are isolation-tested. Random mode allows repetition; distinct from heap.
+- Need: verify values come from the defined set; verify repetition is allowed (unlike heap); verify behavior differs from heap with a seed.
 
-4. **Post-processes with 2-param signature** - Used in EVERY complex piece (wigout.py:91, index_study_1_respiration.py:119)
-   - `def post_process(note, context):` pattern is ubiquitous
-   - Only 1-param lambdas tested
+**4. Itemstream seed constructor param**
+20 files use `Itemstream([...], seed=42)`. No test that seeding produces reproducible output.
+- Need: same seed + heap/random → identical sequence on repeated `generate_notes()` calls; different seed → different sequence.
 
-5. **set_streams_to_seed()** - Used for reproducible random generation (2024.05.27.py:74/77)
-   - Critical for generative music reproducibility
-   - Completely untested
+**5. `set_streams_to_seed()`**
+4 files use this for reproducible generation. Completely untested.
+- Need: after `set_streams_to_seed(n)`, two `generate_notes()` runs produce identical note lists.
 
-### **HIGH PRIORITY - Frequently Used:**
+**6. Lambda on non-duration fields**
+42 files use lambdas for pan, percent, amplitude. Only duration lambdas tested.
+- Need: lambda passed to `with_pan()`, `with_amps()`, `with_percent()` is called per note and result appears in generated score.
 
-6. **Rests ('r')** - pitch_generation.py:19 has `'c5 g f g r c4 g f g r'.split()`
-   - Documented, used, untested
+**7. Rests (`'r'`) in pitch streams**
+10 files. No test. Behavior: 'r' sets frequency to 0 (and amplitude to 0?).
+- Need: verify 'r' produces a note with frequency=0; verify behavior when 'r' appears alongside normal pitches.
 
-7. **Random streammode** - wigout.py:67, 2024.05.27.py:72 use `streammode=streammodes.random`
-   - One of 3 modes, frequently used, never tested
+**8. Octave persistence**
+38 files implicitly depend on it. `test_basiccase` uses `['c4','c','c','d']` but never asserts the bare `'c'` resolves to c4.
+- Need: explicit assertion that omitting octave inherits from previous pitch in the stream.
 
-8. **Child generator inheritance** - index_study_1_respiration.py:175-178, 2024.05.27.py:83-85
-   - Test skeleton exists but has NO assertions
-   - Used for layering musical textures
+**9. Path notetype**
+19 files. Completely untested.
+- Need: `Itemstream(['/path/to/file.wav'], notetype=notetypes.path)` returns the string as-is (no pitch/rhythm conversion applied).
 
-9. **set_stream() on Line class** - Used to add custom pfields (266.py:84-91, 2024.05.27.py:55-59)
-   - Core fluent API method, untested
+---
 
-10. **Heap streammode edge cases** - Used extensively (2024.05.27.py:69, index_study_1_respiration.py:152)
-    - Tested in basic form, but exhaustion/refill cycle not verified
+### Common (6–23 files)
 
-### **MEDIUM PRIORITY - Occasionally Used:**
+**10. Tuple streams via `mapping_keys` / `mapping_lists` constructor form**
+23 files use this form. `test_callables_postprocesses` uses it but only checks score line count, not correctness of `get_next_value()` output.
+- Need: verify `get_next_value()` returns a dict with the correct keys; values from both lists advance in sync.
 
-11. **NoteGeneratorThread** - Real-time performance (jams.py:73-75)
-12. **seed parameter on Itemstream** - wigout.py:125, chapel_october:127
-13. **Octave persistence in pitch notation** - Implicit in all pitch usage
-14. **Lambda streams** - Heavily used but only tested via integration, not isolated
+**11. Chords mixed with rests**
+3 files use `[['c4','e4'], 'r', 'd4']` patterns. Chord tests don't include rests in the same stream.
+- Need: stream with nested chord list alongside `'r'` values — verify rest produces silence and chord notes generate normally.
 
-## Pattern Analysis
+**12. `with_instr()` / `with_index()`**
+19 and 12 files respectively. `test_child_generators` uses them but makes no assertions.
+- Need: verify the set instrument/index value appears at the correct pfield position in the generated score line.
 
-**Your tests cover the happy path of the core generation loop well, but don't test the compositional tools that make Thuja useful for actual composition.**
+**13. pfields list appending**
+23 files use `generator.pfields += [custom_key, ...]` to add output columns. No test.
+- Need: verify custom pfield names added to `pfields` appear as additional tab-delimited columns in generated score lines.
 
-Real-world usage reveals:
-- **deepcopy()** is essential for creating variations (texture1 = copy.deepcopy(pulse_l) pattern)
-- **time_limit** is the primary way to control piece duration
-- **Post-processes with context** are used for complex transformations
-- **Chording** enables harmonic structures
-- **Rests** create rhythmic space
-- **Random modes** with seeded reproducibility are core to generative workflow
+**14. `score_dur` with child generators** (issue #30)
+56 files use `score_dur` for `end_lines`. Tests confirm it's set, but not its correctness when children extend past the parent.
+- See GitHub issue #30.
 
-## Recommendations (Priority Order)
+**15. `generator_dur` relative limits**
+2 files (generative/457.py, gesture_draft.py) set `generator_dur` on spawned child generators. Untested.
+- Need: child with `generator_dur` set stops generating after that duration relative to its start; verify against a child with `time_limit` for comparison.
 
-1. **time_limit tests** - Verify note generation stops at time_limit (integration test)
-2. **deepcopy() tests** - Verify streams are copied, children excluded, notes cleared
-3. **Chording tests** - Nested lists produce multiple simultaneous notes
-4. **Post-process context tests** - Two-parameter signature with context dict
-5. **set_streams_to_seed() tests** - Verify all streams get seeded, reproducibility
-6. **Rests tests** - 'r' produces frequency=0 or skipped notes
-7. **Random streammode tests** - Values are random, seed produces same sequence
-8. **Child generator tests** - Add assertions to existing test, verify inheritance
-9. **set_stream() tests** - Line class fluent API for custom pfields
-10. **Heap exhaustion tests** - Verify all values used before repeat
+---
 
-## Real-World Usage Patterns Observed
+### Lower Priority (0–4 files in wild)
 
-From analyzing ~60 compositions:
+**16. String args to Itemstream constructor**
+4 files use shorthand string streammode/notetype args: `Itemstream(['q'], 'sequence', notetype='rhythm')`. Tests the Itemstream constructor string coercion, distinct from `with_pitches('c4 d e')`.
 
-**Common compositional workflow:**
-```python
-# 1. Create a base generator
-base = Line().with_rhythm(...).with_pitches(...)
+**17. Heap exhaustion/refill cycle**
+26 files depend on heap refilling after all values used. No test that the pool resets correctly and no value repeats within a cycle.
 
-# 2. Make copies for variations
-texture1 = base.deepcopy()
-texture2 = base.deepcopy()
+**18. `generate_score()` with filename argument**
+1 file. Very rare. Verify score is written to disk correctly.
 
-# 3. Modify each copy
-texture1.start_time = 16
-texture2.streams[keys.pan] = 80
+**19. `add_bars_to_starttime()`**
+0 files in wild. Low value until it sees real usage.
 
-# 4. Use time_limit for structure
-texture1.time_limit = 60
-texture2.time_limit = 90
+**20. `clear_notes()`**
+0 files in wild. Low value.
 
-# 5. Layer them
-base.add_generator(texture1)
-base.add_generator(texture2)
+---
 
-# 6. Generate with reproducible randomness
-base.set_streams_to_seed(seed)
-base.generate_notes()
-```
+## Not Worth Testing Now
 
-**None of this workflow is tested**, yet it's how the library is actually used.
+- **NoteGeneratorThread** — requires live Csound; unit-test coverage impractical without mocking ctcsound
+- **Tempo as callable** — 0 files in wild
+- **UDP send methods** — 0 files in wild
+- **csound_utils** — integration-only; requires Csound installed
