@@ -1,6 +1,6 @@
 from __future__ import print_function
 import unittest
-from thuja.itemstream import Itemstream
+from thuja.itemstream import Itemstream, notetypes, streammodes
 from thuja.notegenerator import NoteGenerator
 from thuja.notegenerator import Line
 from thuja.streamkeys import keys
@@ -325,6 +325,21 @@ class TestGenerators(unittest.TestCase):
         melody_left.add_generator(melody_right)
 
         pass
+
+    def test_line_pitches_with_string(self):
+        # Regression test for issue #12: Line.pitches() with a string arg was raising
+        # NameError because it referenced Notetypes() instead of notetypes.
+        line = Line().with_pitches('c4 d4 e4')
+        self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
+
+    def test_line_pitches_with_list(self):
+        line = Line().with_pitches(['c4', 'd4', 'e4'])
+        self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
+
+    def test_line_pitches_with_itemstream(self):
+        stream = Itemstream(['c4', 'd4'], notetype=notetypes.pitch)
+        line = Line().with_pitches(stream)
+        self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
 
 if __name__ == '__main__':
     unittest.main()
