@@ -326,6 +326,225 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    # ------------------------------------------------------------------ #
+    # time_limit
+    # ------------------------------------------------------------------ #
+
+    def test_time_limit_stops_generation(self):
+        # At 120bpm, q = 0.5s. time_limit=2.0 should yield exactly 4 notes
+        # (start times 0.0, 0.5, 1.0, 1.5 — 5th would start at 2.0, cur_time
+        # becomes 2.5 which exceeds limit, so it is excluded).
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]))
+        g.time_limit = 2.0
+        g.generate_notes()
+        self.assertEqual(len(g.notes), 4)
+
+    def test_time_limit_zero_means_no_limit(self):
+        # time_limit=0 is "unset" — generation is controlled by note_limit only
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=6)
+        g.time_limit = 0
+        g.generate_notes()
+        self.assertEqual(len(g.notes), 6)
+
+    def test_time_limit_all_notes_within_boundary(self):
+        # Every generated note's start_time should be less than time_limit
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]))
+        g.time_limit = 3.0
+        g.generate_notes()
+        for note in g.notes:
+            start = float(note.split()[1])
+            self.assertLess(start, g.time_limit)
+
+    # ------------------------------------------------------------------ #
+    # deepcopy / deepcopy_tree
+    # ------------------------------------------------------------------ #
+
+    def test_deepcopy_streams_are_independent(self):
+        # Modifying a stream on the copy should not affect the original
+        original = Line().with_rhythm('q').with_pitches('c4 d4 e4')
+        copied = original.deepcopy()
+        copied.streams[keys.frequency] = Itemstream(['g4'])
+        self.assertNotEqual(
+            original.streams[keys.frequency].values,
+            copied.streams[keys.frequency].values
+        )
+
+    def test_deepcopy_clears_children(self):
+        parent = Line().with_rhythm('q').with_pitches('c4')
+        child = Line().with_rhythm('e').with_pitches('g4')
+        parent.add_generator(child)
+        self.assertEqual(len(parent.generators), 1)
+        copied = parent.deepcopy()
+        self.assertEqual(len(copied.generators), 0)
+
+    def test_deepcopy_original_keeps_children(self):
+        parent = Line().with_rhythm('q').with_pitches('c4')
+        child = Line().with_rhythm('e').with_pitches('g4')
+        parent.add_generator(child)
+        parent.deepcopy()
+        self.assertEqual(len(parent.generators), 1)
+
+    def test_deepcopy_context_is_independent(self):
+        original = Line().with_rhythm('q').with_pitches('c4')
+        original.context['counter'] = 0
+        copied = original.deepcopy()
+        copied.context['counter'] = 99
+        self.assertEqual(original.context['counter'], 0)
+
+    def test_deepcopy_tree_includes_children(self):
+        parent = Line().with_rhythm('q').with_pitches('c4')
+        child = Line().with_rhythm('e').with_pitches('g4')
+        parent.add_generator(child)
+        copied = parent.deepcopy_tree()
+        self.assertEqual(len(copied.generators), 1)
+
+    # ------------------------------------------------------------------ #
+    # chording
+    # ------------------------------------------------------------------ #
+
+    def test_chording_produces_simultaneous_notes(self):
+        # A nested list in the pitch stream should produce multiple notes
+        # at the same start_time (a chord)
+        g = Line()
+        g.set_stream(keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm))
+        g.set_stream(keys.duration, Itemstream([.5]))
+        g.set_stream(keys.frequency, Itemstream(
+            [['c4', 'e4', 'g4'], 'd4'],
+            notetype=notetypes.pitch,
+            streammode=streammodes.sequence
+        ))
+        g.time_limit = 2.0
+        g.generate_notes()
+        # First beat should produce 3 notes at t=0.0 (the chord)
+        start_times = [float(n.split()[1]) for n in g.notes]
+        first_beat_notes = [t for t in start_times if t == 0.0]
+        self.assertEqual(len(first_beat_notes), 3)
+
+    def test_chording_advances_time_once(self):
+        # Time should advance only once for a chord, not once per chord note
+        g = Line()
+        g.set_stream(keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm))
+        g.set_stream(keys.duration, Itemstream([.5]))
+        g.set_stream(keys.frequency, Itemstream(
+            [['c4', 'e4'], 'd4'],
+            notetype=notetypes.pitch,
+            streammode=streammodes.sequence
+        ))
+        g.note_limit = 3  # chord (2 notes) + 1 single note
+        g.generate_notes()
+        start_times = sorted(set(float(n.split()[1]) for n in g.notes))
+        # Should have exactly 2 distinct start times: 0.0 (chord) and 0.5 (next note)
+        self.assertEqual(len(start_times), 2)
+
+    # ------------------------------------------------------------------ #
+    # child generator inheritance
+    # ------------------------------------------------------------------ #
+
+    def test_child_inherits_parent_time_limit(self):
+        # Child with no time_limit set should inherit parent's time_limit
+        parent = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=1)
+        parent.time_limit = 2.0
+
+        child = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]))
+        # child has no time_limit set
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        # All child notes should fall within parent's time_limit
+        child_notes = g.notes if False else [
+            n for n in parent.notes
+            if float(n.split()[1]) > 0  # parent note is at t=0
+        ]
+        for note in child_notes:
+            self.assertLess(float(note.split()[1]), parent.time_limit)
+
+    def test_child_start_time_offset_by_parent(self):
+        # Child's start_time should be offset by parent's start_time
+        parent = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=1, start_time=2.0)
+
+        child = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=1)
+        child.start_time = 1.0  # relative to parent
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        start_times = sorted([float(n.split()[1]) for n in parent.notes])
+        # parent note at 2.0, child note at 2.0 + 1.0 = 3.0
+        self.assertIn(2.0, start_times)
+        self.assertIn(3.0, start_times)
+
+    def test_child_notes_merged_and_sorted(self):
+        # Notes from parent and child should be sorted by start_time
+        parent = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['h'], notetype=notetypes.rhythm)),
+        ]), note_limit=2)
+
+        child = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=4)
+        child.start_time = 0.0
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        start_times = [float(n.split()[1]) for n in parent.notes]
+        self.assertEqual(start_times, sorted(start_times))
+
+    def test_child_inherits_parent_note_limit(self):
+        # Child with no note_limit should inherit parent's note_limit.
+        # Parent generates 3 notes; child inherits note_limit=3 and also
+        # generates 3, giving 6 total.
+        parent = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]), note_limit=3)
+
+        child = NoteGenerator(streams=OrderedDict([
+            (keys.instrument, Itemstream([1])),
+            (keys.duration, Itemstream([.5])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+        ]))
+        # child has no note_limit set (0)
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        self.assertEqual(len(parent.notes), 6)  # 3 parent + 3 inherited by child
+
     def test_setup_index_params(self):
         # Regression test for issue #18: setup_index_params_with_file() extracted
         # from Line to utils.setup_index_params(generator, filename).
