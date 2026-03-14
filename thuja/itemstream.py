@@ -92,16 +92,25 @@ class Itemstream:
         self.rand = random.Random()
         self.rand.seed(self.seed)
 
+
+        # 2025.11.06: Itemstreams composed of mapping lists are used by post processes to set multiple pfields
+        #   at once.  For example, a post process might set both the frequency, rhythm and amplitude of a note
+        #   at once, and the mapping lists correlate those three p-fields into a compound value.
+        #   This case isn't supported in the generate_notes algorithm, but can be called by post processes to
+        #   iterate through the values of the mapped lists.  See tests/test_itemstream.py->test_mappings
+        #   for the best example.
         if mapping_keys is not None and mapping_lists is not None:
             self.values = []
             map_length = 0
             map_index = 0
-            # find the longest list
+            # find the longest list provided in mapping lists
             for x in range(len(mapping_lists)):
                 if len(mapping_lists[x]) > map_length:
                     map_length = len(mapping_lists[x])
                     map_index = x
 
+            # create a list of dictionaries, each with the same keys as mapping_keys, and the same length as the
+            #   longest list provided in mapping lists.
             for i in range(map_length):
                 item = {}
                 for keydx in range(len(mapping_keys)):
@@ -109,6 +118,9 @@ class Itemstream:
                     item[key] = mapping_lists[keydx][i % len(mapping_lists[keydx])]
                 self.values.append(item)
 
+    # Random seeds can be set after copying a generator, so that random processes (streammodes == heap or random,
+    #   for example) produce fresh values. Likewise, reusing a seed on a generator ensures repeatable results
+    #   from the generator's random- or heap-mode streams.
     def set_seed(self, seed):
         self.rand = random.Random()
         if seed is None:
