@@ -326,6 +326,16 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_mutable_default_args(self):
+        # Regression test for issue #13: post_processes=[] and gen_lines=[] as default
+        # args caused all instances to share the same list object.
+        g1 = NoteGenerator()
+        g2 = NoteGenerator()
+        g1.post_processes.append(lambda note: note)
+        g1.gen_lines.append('f 1 0 16384 10 1')
+        self.assertEqual(len(g2.post_processes), 0)
+        self.assertEqual(len(g2.gen_lines), 0)
+
     def test_line_pitches_with_string(self):
         # Regression test for issue #12: Line.pitches() with a string arg was raising
         # NameError because it referenced Notetypes() instead of notetypes.

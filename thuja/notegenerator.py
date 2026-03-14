@@ -21,9 +21,9 @@ class NoteGenerator:
                  start_time=0.0,
                  streams=None,
                  pfields=None,
-                 post_processes=[],
+                 post_processes=None,
                  init_context=None,
-                 gen_lines=[]):
+                 gen_lines=None):
         """
         Initializes a Generator object.ˆ
 
@@ -53,7 +53,7 @@ class NoteGenerator:
         #   generator_dur can be used to set a relative time limit after that offset occurs in generate_notes
         self.generator_dur = 0
 
-        self.gen_lines = gen_lines
+        self.gen_lines = gen_lines if gen_lines is not None else []
         self.note_count = 0
         self.notes = []
         self.end_lines = []
@@ -72,7 +72,7 @@ class NoteGenerator:
             self.context = {}
 
         # an array of callables, called in sequence after each note is initialized.
-        self.post_processes = post_processes
+        self.post_processes = post_processes if post_processes is not None else []
 
         self.generators = []
 
