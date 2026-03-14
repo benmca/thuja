@@ -326,6 +326,24 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_with_streams_ordered_dict(self):
+        # Regression test for issue #15: with_streams() with an OrderedDict was
+        # being overwritten by the else branch, and didn't return self.
+        od = OrderedDict([(keys.instrument, Itemstream([1]))])
+        g = NoteGenerator().with_streams(od)
+        self.assertIs(g.streams, od)
+
+    def test_with_streams_plain_dict(self):
+        d = [(keys.instrument, Itemstream([1]))]
+        g = NoteGenerator().with_streams(d)
+        self.assertIsInstance(g.streams, OrderedDict)
+        self.assertIn(keys.instrument, g.streams)
+
+    def test_with_streams_returns_self(self):
+        g = NoteGenerator()
+        result = g.with_streams(OrderedDict())
+        self.assertIs(result, g)
+
     def test_mutable_default_args(self):
         # Regression test for issue #13: post_processes=[] and gen_lines=[] as default
         # args caused all instances to share the same list object.
