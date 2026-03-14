@@ -326,6 +326,19 @@ class TestGenerators(unittest.TestCase):
 
         pass
 
+    def test_get_tempo_on_note_generator(self):
+        # Regression test for issue #14: NoteGenerator.tempo() renamed to get_tempo()
+        # to avoid collision with Line.tempo(x) fluent setter.
+        g = NoteGenerator(streams=OrderedDict([
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm))
+        ]))
+        g.streams[keys.rhythm].tempo = 90
+        self.assertEqual(g.get_tempo(), 90)
+
+    def test_line_tempo_setter_still_works(self):
+        line = Line().with_rhythm('q').with_tempo(90)
+        self.assertEqual(line.streams[keys.rhythm].tempo, 90)
+
     def test_with_streams_ordered_dict(self):
         # Regression test for issue #15: with_streams() with an OrderedDict was
         # being overwritten by the else branch, and didn't return self.

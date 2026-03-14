@@ -358,7 +358,7 @@ class NoteGenerator:
         for x in range(len(self.notes)):
             sock.sendto(("&" + self.notes[x]).encode(), (UDP_IP, UDP_PORT))
 
-    def tempo(self):
+    def get_tempo(self):
         return self.streams[keys.rhythm].tempo
 
     def set_streams_to_seed(self, seed):
