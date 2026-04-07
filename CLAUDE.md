@@ -132,6 +132,15 @@ Children inherit parent's timing constraints (start_time, time_limit, note_limit
 
 - **[HISTORY.md](HISTORY.md)**: Significant changes, decisions, and context behind work done on this codebase. Updated each session.
 
+## Maintenance Requirements
+
+**Every PR must include updates to these files before the commit is made:**
+
+- **`tests/todos.md`**: Move newly tested items from "Outstanding Gaps" to "Already Covered". Add any new gaps discovered during the work. Update the "Last updated" date.
+- **`HISTORY.md`**: Add a dated entry describing what changed, why, and any decisions made. Include bug fixes, design choices, and anything a future reader would want to know that isn't obvious from the diff.
+
+These files are the project's institutional memory. Keeping them current is not optional.
+
 ## Experimental / Proposals
 
 - **[LinkFollowerProposal.md](LinkFollowerProposal.md)**: Architecture proposal for syncing NoteGeneratorThread to Ableton Link. Thuja follows Link tempo; Phase 2 adds quantized regeneration at beat/bar boundaries.
