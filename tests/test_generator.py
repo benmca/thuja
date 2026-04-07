@@ -659,5 +659,196 @@ class TestGenerators(unittest.TestCase):
         line = Line().with_pitches(stream)
         self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
 
+    # ------------------------------------------------------------------ #
+    # post_process: 2-param (note, context) signature  (#29)
+    # ------------------------------------------------------------------ #
+
+    def test_post_process_two_param_signature_receives_context(self):
+        # A post_process defined as def pp(note, context): should receive the
+        # generator's context dict as the second argument.
+        received = {}
+
+        def pp(note, context):
+            received['context'] = context
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1,
+            post_processes=[pp]
+        )
+        gen.generate_notes()
+
+        self.assertIn('context', received)
+        self.assertIs(received['context'], gen.context)
+
+    def test_post_process_context_state_persists_across_notes(self):
+        # Context is shared across all notes in a generate_notes() call.
+        # Mutations made in one note's post_process are visible to the next.
+        def pp(note, context):
+            context['counter'] = context.get('counter', 0) + 1
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=5,
+            post_processes=[pp]
+        )
+        gen.generate_notes()
+
+        self.assertEqual(gen.context['counter'], 5)
+
+    def test_chained_post_processes_run_in_order(self):
+        # Multiple post_processes in the list run sequentially for each note,
+        # in the order they appear in the list.
+        order = []
+
+        def first(note):
+            order.append('first')
+
+        def second(note):
+            order.append('second')
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1,
+            post_processes=[first, second]
+        )
+        gen.generate_notes()
+
+        self.assertEqual(order, ['first', 'second'])
+
+    def test_post_process_one_param_signature_still_works(self):
+        # Single-param post_processes (def pp(note):) are still called correctly
+        # alongside the 2-param variant — the signature detection is backwards-compatible.
+        called = []
+
+        def pp(note):
+            called.append(True)
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=3,
+            post_processes=[pp]
+        )
+        gen.generate_notes()
+
+        self.assertEqual(len(called), 3)
+
+    def test_post_process_context_can_be_preloaded_via_init_context(self):
+        # init_context lets you pre-populate context before generate_notes().
+        # This is the pattern used to pass tuplestreams and lookup tables.
+        def pp(note, context):
+            context['calls'] = context.get('calls', 0) + 1
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=4,
+            post_processes=[pp],
+            init_context={'preloaded': True}
+        )
+        gen.generate_notes()
+
+        self.assertTrue(gen.context['preloaded'])
+        self.assertEqual(gen.context['calls'], 4)
+
+    # ------------------------------------------------------------------ #
+    # score_dur with child generators  (#30)
+    # ------------------------------------------------------------------ #
+
+    def test_score_dur_is_last_note_start_plus_duration(self):
+        # Basic: score_dur = start_time of last note + its duration.
+        # At 120bpm, q = 0.5s. 4 notes start at 0, 0.5, 1.0, 1.5.
+        # Last note ends at 1.5 + 0.5 = 2.0.
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=4
+        )
+        gen.generate_notes()
+        self.assertAlmostEqual(gen.score_dur, 2.0)
+
+    def test_score_dur_extends_to_cover_child_that_starts_late(self):
+        # When a child generator produces notes that end later than the parent's
+        # notes, score_dur reflects the child's end time — not just the parent's.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1   # parent ends at 0.5
+        )
+        child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=2,
+            start_time=3.0  # child starts at 3.0, ends at 4.0
+        )
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        # Child ends at 3.0 + 0.5 + 0.5 = 4.0; parent only reaches 0.5
+        self.assertGreater(parent.score_dur, 0.5)
+        self.assertAlmostEqual(parent.score_dur, 4.0)
+
+    def test_score_dur_is_max_across_all_children(self):
+        # score_dur is the maximum end time across the parent and all children.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1
+        )
+        short_child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1,
+            start_time=1.0   # ends at 1.5
+        )
+        long_child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=3,
+            start_time=5.0   # ends at 6.5
+        )
+        parent.add_generator(short_child)
+        parent.add_generator(long_child)
+        parent.generate_notes()
+
+        self.assertAlmostEqual(parent.score_dur, 6.5)
+
 if __name__ == '__main__':
     unittest.main()
