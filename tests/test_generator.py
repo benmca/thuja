@@ -770,5 +770,228 @@ class TestGenerators(unittest.TestCase):
         self.assertGreater(freqs[4], 0)
         self.assertGreater(start_times[4], start_times[3])
 
+    # Line fluent API: with_instr, with_index, path notetype, pfields  (#34)
+    # ------------------------------------------------------------------ #
+    # Line default pfield order in the score string (split by whitespace):
+    #   [0] = 'i' + instrument    instrument is embedded: 'i1', 'i4', etc.
+    #   [1] = start_time
+    #   [2] = duration
+    #   [3] = amplitude
+    #   [4] = frequency
+    #   [5] = pan  ...
+
+    def test_with_instr_sets_instrument_number_in_score(self):
+        # with_instr(n) sets p1 — the Csound instrument number.
+        # In the score string, instrument is embedded in split()[0] as 'i<n>'.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_instr(7))
+        gen.note_limit = 1
+        gen.generate_notes()
+
+        instr = int(gen.notes[0].split()[0][1:])   # strip leading 'i'
+        self.assertEqual(instr, 7)
+
+    def test_with_index_value_appears_in_score(self):
+        # with_index(n) adds an index stream, but index must also be in pfields
+        # to appear in the score — this mirrors the real usage pattern where
+        # setup_index_params or manual pfields.append() is required.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_index(3.5))
+        gen.pfields.append(keys.index)
+        gen.note_limit = 1
+        gen.generate_notes()
+
+        fields = gen.notes[0].split()
+        index_val = float(fields[len(fields) - 1])   # last column
+        self.assertAlmostEqual(index_val, 3.5)
+
+    def test_path_notetype_returns_quoted_string_unchanged(self):
+        # notetypes.path wraps the string in double-quotes and passes it through
+        # without any pitch or rhythm conversion.
+        stream = Itemstream(['/samples/kick.wav'], notetype=notetypes.path)
+        val = stream.get_next_value()
+        self.assertEqual(val, '"/samples/kick.wav"')
+
+    def test_path_notetype_does_not_convert_to_frequency(self):
+        # A path string would raise an error or produce garbage if treated as pitch.
+        # Confirm notetypes.path leaves the value intact as a string.
+        stream = Itemstream(['/samples/snare.wav'], notetype=notetypes.path)
+        val = stream.get_next_value()
+        self.assertIsInstance(val, str)
+        self.assertIn('/samples/snare.wav', val)
+
+    def test_custom_pfield_appended_to_pfields_appears_in_score(self):
+        # A custom stream added via set_stream() only appears in the score
+        # when its key is also appended to generator.pfields.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4'))
+        gen.set_stream('my_param', 42.0)
+        gen.pfields.append('my_param')
+        gen.note_limit = 1
+        gen.generate_notes()
+
+        # my_param should be the last column in the score line
+        fields = gen.notes[0].split()
+        self.assertAlmostEqual(float(fields[-1]), 42.0)
+
+    def test_custom_pfield_absent_from_score_if_not_in_pfields(self):
+        # A stream key that exists in streams but NOT in pfields does not
+        # produce an extra column in the score output.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4'))
+        default_field_count = len(gen.pfields)
+        gen.set_stream('hidden', 99.0)
+        # deliberately NOT appending 'hidden' to pfields
+        gen.note_limit = 1
+        gen.generate_notes()
+
+        fields = gen.notes[0].split()
+        # +1 for the 'i' prefix on instrument field
+        self.assertEqual(len(fields), default_field_count + 1)
+
+    def test_pfields_append_pattern_used_in_csound_pieces(self):
+        # Real-world pattern: container.pfields += [keys.index, 'orig_rhythm', 'inst_file']
+        # Each appended key must also have a stream, otherwise it emits empty string.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4'))
+        gen.set_stream(keys.index, 7.0)
+        gen.set_stream('fade_in', 0.001)
+        gen.pfields += [keys.index, 'fade_in']
+        gen.note_limit = 1
+        gen.generate_notes()
+
+        fields = gen.notes[0].split()
+        # Second-to-last: index, last: fade_in
+        self.assertAlmostEqual(float(fields[-2]), 7.0)
+        self.assertAlmostEqual(float(fields[-1]), 0.001)
+
+    def test_generator_dur_limits_child_to_relative_duration(self):
+        # generator_dur sets a relative duration for a child generator.
+        # The child's effective time_limit becomes child.start_time + generator_dur.
+        # At 120bpm, q = 0.5s.  Child starts at 2.0 with generator_dur=1.0,
+        # so time_limit = 3.0.  Notes at 2.0 and 2.5 are within; 3.0 is not.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1
+        )
+        child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,
+            note_limit=100   # high enough that only generator_dur stops it
+        )
+        child.generator_dur = 1.0
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        child_notes = [n for n in parent.notes if float(n.split()[1]) >= 2.0]
+        child_start_times = sorted([float(n.split()[1]) for n in child_notes])
+
+        # Only notes at 2.0 and 2.5 should appear; 3.0+ is beyond time_limit
+        self.assertEqual(child_start_times, [2.0, 2.5])
+
+    def test_generator_dur_start_time_is_absolute_not_offset_by_parent(self):
+        # When generator_dur > 0, the child's start_time is treated as absolute
+        # and is NOT offset by the parent's start_time.  This is different from
+        # the normal child behavior where start_time is relative to the parent.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1,
+            start_time=5.0    # parent starts at t=5.0
+        )
+        child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,   # absolute — NOT relative to parent's 5.0
+            note_limit=1
+        )
+        child.generator_dur = 1.0
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        child_start_times = [float(n.split()[1]) for n in parent.notes
+                             if float(n.split()[1]) != 5.0]
+        # Child starts at 2.0 (absolute), NOT 5.0 + 2.0 = 7.0
+        self.assertIn(2.0, child_start_times)
+        self.assertNotIn(7.0, child_start_times)
+
+    def test_generator_dur_vs_time_limit_distinction(self):
+        # time_limit is an absolute clock position; generator_dur is relative
+        # to the child's own start_time.
+        #
+        # A child at start_time=2.0 with generator_dur=1.0 stops at 3.0.
+        # A child at start_time=0.0 with time_limit=3.0 also stops at 3.0.
+        # Both should produce notes at 0.0, 0.5, 1.0, 1.5, 2.0, 2.5 — 6 notes.
+        # (Note at 3.0 is excluded because cur_time becomes 3.5 > time_limit.)
+        def make_parent_with_child(child):
+            parent = NoteGenerator(
+                streams=OrderedDict([
+                    (keys.instrument, Itemstream([1])),
+                    (keys.duration, Itemstream([0.5])),
+                    (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+                ]),
+                note_limit=1
+            )
+            parent.add_generator(child)
+            parent.generate_notes()
+            return parent
+
+        child_time_limit = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=100
+        )
+        child_time_limit.time_limit = 3.0   # absolute: stop when clock >= 3.0
+
+        child_generator_dur = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,
+            note_limit=100
+        )
+        child_generator_dur.generator_dur = 1.0  # relative: span 1.0s from start_time
+
+        parent_a = make_parent_with_child(child_time_limit)
+        parent_b = make_parent_with_child(child_generator_dur)
+
+        a_child_times = sorted([float(n.split()[1]) for n in parent_a.notes
+                                 if float(n.split()[1]) > 0])
+        b_child_times = sorted([float(n.split()[1]) for n in parent_b.notes
+                                 if float(n.split()[1]) >= 2.0])
+
+        # time_limit child: notes at 0.5, 1.0, 1.5, 2.0, 2.5 (start_time offset by parent's 0)
+        self.assertEqual(a_child_times, [0.5, 1.0, 1.5, 2.0, 2.5])
+        # generator_dur child: notes at 2.0, 2.5
+        self.assertEqual(b_child_times, [2.0, 2.5])
+
 if __name__ == '__main__':
     unittest.main()
