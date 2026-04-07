@@ -659,5 +659,94 @@ class TestGenerators(unittest.TestCase):
         line = Line().with_pitches(stream)
         self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
 
+    # ------------------------------------------------------------------ #
+    # set_streams_to_seed  (#31)
+    # ------------------------------------------------------------------ #
+
+    def test_set_streams_to_seed_two_generators_same_seed_same_output(self):
+        # Two independent generators with identical config and the same seed
+        # passed to set_streams_to_seed() before generate_notes() produce
+        # identical note lists. This is how it's used in csound-pieces to
+        # create deterministic variations:
+        #   gen1.set_streams_to_seed(int(time.time()))
+        #   gen2.set_streams_to_seed(int(time.time()) + 100)
+        def make_gen():
+            g = NoteGenerator(
+                streams=OrderedDict([
+                    (keys.instrument, Itemstream([1])),
+                    (keys.duration, Itemstream([0.5])),
+                    (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+                    (keys.frequency, Itemstream(
+                        ['c4', 'd4', 'e4', 'f4', 'g4'],
+                        notetype=notetypes.pitch,
+                        streammode=streammodes.heap
+                    )),
+                ]),
+                note_limit=10
+            )
+            return g
+
+        gen_a = make_gen()
+        gen_b = make_gen()
+        gen_a.set_streams_to_seed(42)
+        gen_b.set_streams_to_seed(42)
+        gen_a.generate_notes()
+        gen_b.generate_notes()
+
+        self.assertEqual(gen_a.notes, gen_b.notes)
+
+    def test_set_streams_to_seed_different_seeds_different_output(self):
+        # Different seeds produce different random draws.
+        def make_gen():
+            return NoteGenerator(
+                streams=OrderedDict([
+                    (keys.instrument, Itemstream([1])),
+                    (keys.duration, Itemstream([0.5])),
+                    (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+                    (keys.frequency, Itemstream(
+                        ['c4', 'd4', 'e4', 'f4', 'g4'],
+                        notetype=notetypes.pitch,
+                        streammode=streammodes.heap
+                    )),
+                ]),
+                note_limit=10
+            )
+
+        gen_a = make_gen()
+        gen_b = make_gen()
+        gen_a.set_streams_to_seed(1)
+        gen_b.set_streams_to_seed(9999)
+        gen_a.generate_notes()
+        gen_b.generate_notes()
+
+        self.assertNotEqual(gen_a.notes, gen_b.notes)
+
+    def test_set_streams_to_seed_also_reseeds_context_streams(self):
+        # set_streams_to_seed reseeds Itemstreams stored in context as well,
+        # so post_processes that draw from context streams are also reproducible.
+        def make_gen():
+            def pp(note, context):
+                note.pfields[keys.amplitude] = context['vals'].get_next_value()
+
+            return NoteGenerator(
+                streams=OrderedDict([
+                    (keys.instrument, Itemstream([1])),
+                    (keys.duration, Itemstream([0.5])),
+                    (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+                ]),
+                note_limit=4,
+                post_processes=[pp],
+                init_context={'vals': Itemstream([1.0, 2.0, 3.0, 4.0], streammode=streammodes.heap)}
+            )
+
+        gen_a = make_gen()
+        gen_b = make_gen()
+        gen_a.set_streams_to_seed(77)
+        gen_b.set_streams_to_seed(77)
+        gen_a.generate_notes()
+        gen_b.generate_notes()
+
+        self.assertEqual(gen_a.notes, gen_b.notes)
+
 if __name__ == '__main__':
     unittest.main()

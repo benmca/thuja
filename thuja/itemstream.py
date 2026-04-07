@@ -118,6 +118,14 @@ class Itemstream:
                     item[key] = mapping_lists[keydx][i % len(mapping_lists[keydx])]
                 self.values.append(item)
 
+        # For random-order modes, start at a random index so the first draw is not
+        # always values[0]. For heap mode, mark that index as used so it won't be
+        # drawn again until the heap refills.
+        if self.values and self.streammode in (streammodes.heap, streammodes.random):
+            self.index = self.rand.randrange(0, len(self.values))
+            if self.streammode == streammodes.heap:
+                self.heapdict.add(self.index)
+
     # Random seeds can be set after copying a generator, so that random processes (streammodes == heap or random,
     #   for example) produce fresh values. Likewise, reusing a seed on a generator ensures repeatable results
     #   from the generator's random- or heap-mode streams.
