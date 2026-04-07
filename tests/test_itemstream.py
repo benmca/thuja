@@ -123,6 +123,106 @@ class TestItemstreams(unittest.TestCase):
 
 
     # ------------------------------------------------------------------ #
+    # Tuple streams: mapping_keys/mapping_lists get_next_value  (#35)
+    # ------------------------------------------------------------------ #
+
+    def test_mapping_stream_get_next_value_returns_correct_dict(self):
+        # get_next_value() on a mapping stream returns a dict whose keys
+        # match mapping_keys and whose values come from the corresponding list.
+        rhythms = ['h', 'q', 'e']
+        indexes = [1.0, 2.0, 3.0]
+        stream = Itemstream(
+            mapping_keys=[keys.rhythm, keys.index],
+            mapping_lists=[rhythms, indexes]
+        )
+        first = stream.get_next_value()
+        self.assertEqual(first[keys.rhythm], 'h')
+        self.assertAlmostEqual(first[keys.index], 1.0)
+
+    def test_mapping_stream_values_advance_in_sync(self):
+        # Each call to get_next_value() advances both lists together —
+        # the nth call always returns the nth pair, never mixing pairs.
+        rhythms = ['h', 'q', 'e']
+        indexes = [1.0, 2.0, 3.0]
+        stream = Itemstream(
+            mapping_keys=[keys.rhythm, keys.index],
+            mapping_lists=[rhythms, indexes]
+        )
+        results = [stream.get_next_value() for _ in range(3)]
+        self.assertEqual(results[0][keys.rhythm], 'h')
+        self.assertAlmostEqual(results[0][keys.index], 1.0)
+        self.assertEqual(results[1][keys.rhythm], 'q')
+        self.assertAlmostEqual(results[1][keys.index], 2.0)
+        self.assertEqual(results[2][keys.rhythm], 'e')
+        self.assertAlmostEqual(results[2][keys.index], 3.0)
+
+    def test_mapping_stream_wraps_in_sequence_mode(self):
+        # After the last pair, the stream wraps back to the first pair.
+        rhythms = ['h', 'q']
+        indexes = [1.0, 2.0]
+        stream = Itemstream(
+            mapping_keys=[keys.rhythm, keys.index],
+            mapping_lists=[rhythms, indexes],
+            streammode=streammodes.sequence
+        )
+        # Exhaust + one more
+        stream.get_next_value()
+        stream.get_next_value()
+        wrapped = stream.get_next_value()
+        self.assertEqual(wrapped[keys.rhythm], 'h')
+        self.assertAlmostEqual(wrapped[keys.index], 1.0)
+
+    def test_mapping_stream_shorter_list_wraps_independently(self):
+        # When lists have different lengths, the shorter one wraps to fill
+        # the longer one's length (Itemstream constructor pads with wrap).
+        rhythms = ['h', 'q', 'e', 'w']   # length 4
+        indexes = [1.0, 2.0]              # length 2 — wraps: 1.0, 2.0, 1.0, 2.0
+        stream = Itemstream(
+            mapping_keys=[keys.rhythm, keys.index],
+            mapping_lists=[rhythms, indexes]
+        )
+        results = [stream.get_next_value() for _ in range(4)]
+        self.assertEqual([r[keys.rhythm] for r in results], ['h', 'q', 'e', 'w'])
+        self.assertEqual([r[keys.index] for r in results], [1.0, 2.0, 1.0, 2.0])
+
+    def test_mapping_stream_in_post_process_sets_pfields(self):
+        # The dominant real-world pattern: a tuple stream lives in context
+        # and a post_process reads from it to set note.rhythm and a custom pfield.
+        # This is the core of every index-based granular synthesis piece.
+        rhythms = ['h', 'q', 'e']
+        indexes = [0.5, 1.5, 2.5]
+        tempo = 120
+
+        def parse_tuple(note, context):
+            item = context['tuplestream'].get_next_value()
+            note.rhythm = utils.rhythm_to_duration(item[keys.rhythm], tempo)
+            note.pfields[keys.index] = item[keys.index]
+
+        gen = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+            ]),
+            pfields=[keys.instrument, keys.start_time, keys.duration, keys.index],
+            note_limit=3,
+            post_processes=[parse_tuple],
+            init_context={
+                'tuplestream': Itemstream(
+                    mapping_keys=[keys.rhythm, keys.index],
+                    mapping_lists=[rhythms, indexes],
+                    tempo=tempo
+                )
+            }
+        )
+        gen.generate_notes()
+
+        # Each note should have the index from the corresponding tuple
+        index_values = [float(note.split()[3]) for note in gen.notes]
+        self.assertAlmostEqual(index_values[0], 0.5)
+        self.assertAlmostEqual(index_values[1], 1.5)
+        self.assertAlmostEqual(index_values[2], 2.5)
+
+    # ------------------------------------------------------------------ #
     # streammode=random  (#31)
     # ------------------------------------------------------------------ #
 
