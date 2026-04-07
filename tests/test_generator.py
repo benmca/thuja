@@ -659,5 +659,130 @@ class TestGenerators(unittest.TestCase):
         line = Line().with_pitches(stream)
         self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
 
+    # ------------------------------------------------------------------ #
+    # generator_dur — relative time limit on child generators  (#36)
+    # ------------------------------------------------------------------ #
+
+    def test_generator_dur_limits_child_to_relative_duration(self):
+        # generator_dur sets a relative duration for a child generator.
+        # The child's effective time_limit becomes child.start_time + generator_dur.
+        # At 120bpm, q = 0.5s.  Child starts at 2.0 with generator_dur=1.0,
+        # so time_limit = 3.0.  Notes at 2.0 and 2.5 are within; 3.0 is not.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1
+        )
+        child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,
+            note_limit=100   # high enough that only generator_dur stops it
+        )
+        child.generator_dur = 1.0
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        child_notes = [n for n in parent.notes if float(n.split()[1]) >= 2.0]
+        child_start_times = sorted([float(n.split()[1]) for n in child_notes])
+
+        # Only notes at 2.0 and 2.5 should appear; 3.0+ is beyond time_limit
+        self.assertEqual(child_start_times, [2.0, 2.5])
+
+    def test_generator_dur_start_time_is_absolute_not_offset_by_parent(self):
+        # When generator_dur > 0, the child's start_time is treated as absolute
+        # and is NOT offset by the parent's start_time.  This is different from
+        # the normal child behavior where start_time is relative to the parent.
+        parent = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=1,
+            start_time=5.0    # parent starts at t=5.0
+        )
+        child = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,   # absolute — NOT relative to parent's 5.0
+            note_limit=1
+        )
+        child.generator_dur = 1.0
+
+        parent.add_generator(child)
+        parent.generate_notes()
+
+        child_start_times = [float(n.split()[1]) for n in parent.notes
+                             if float(n.split()[1]) != 5.0]
+        # Child starts at 2.0 (absolute), NOT 5.0 + 2.0 = 7.0
+        self.assertIn(2.0, child_start_times)
+        self.assertNotIn(7.0, child_start_times)
+
+    def test_generator_dur_vs_time_limit_distinction(self):
+        # time_limit is an absolute clock position; generator_dur is relative
+        # to the child's own start_time.
+        #
+        # A child at start_time=2.0 with generator_dur=1.0 stops at 3.0.
+        # A child at start_time=0.0 with time_limit=3.0 also stops at 3.0.
+        # Both should produce notes at 0.0, 0.5, 1.0, 1.5, 2.0, 2.5 — 6 notes.
+        # (Note at 3.0 is excluded because cur_time becomes 3.5 > time_limit.)
+        def make_parent_with_child(child):
+            parent = NoteGenerator(
+                streams=OrderedDict([
+                    (keys.instrument, Itemstream([1])),
+                    (keys.duration, Itemstream([0.5])),
+                    (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+                ]),
+                note_limit=1
+            )
+            parent.add_generator(child)
+            parent.generate_notes()
+            return parent
+
+        child_time_limit = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            note_limit=100
+        )
+        child_time_limit.time_limit = 3.0   # absolute: stop when clock >= 3.0
+
+        child_generator_dur = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([1])),
+                (keys.duration, Itemstream([0.5])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm)),
+            ]),
+            start_time=2.0,
+            note_limit=100
+        )
+        child_generator_dur.generator_dur = 1.0  # relative: span 1.0s from start_time
+
+        parent_a = make_parent_with_child(child_time_limit)
+        parent_b = make_parent_with_child(child_generator_dur)
+
+        a_child_times = sorted([float(n.split()[1]) for n in parent_a.notes
+                                 if float(n.split()[1]) > 0])
+        b_child_times = sorted([float(n.split()[1]) for n in parent_b.notes
+                                 if float(n.split()[1]) >= 2.0])
+
+        # time_limit child: notes at 0.5, 1.0, 1.5, 2.0, 2.5 (start_time offset by parent's 0)
+        self.assertEqual(a_child_times, [0.5, 1.0, 1.5, 2.0, 2.5])
+        # generator_dur child: notes at 2.0, 2.5
+        self.assertEqual(b_child_times, [2.0, 2.5])
+
 if __name__ == '__main__':
     unittest.main()
