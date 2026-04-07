@@ -778,6 +778,82 @@ class TestGenerators(unittest.TestCase):
     #   [2] = duration
     #   [3] = amplitude
     #   [4] = frequency
+    #   [5] = pan
+    #   [6] = distance
+    #   [7] = percent
+
+    def test_lambda_on_pan_produces_constant_return_value(self):
+        # A lambda assigned to pan is called once per note.
+        # The return value appears at position [5] in the score line.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_pan(lambda note: 72.0))
+        gen.note_limit = 4
+        gen.generate_notes()
+
+        for note in gen.notes:
+            self.assertAlmostEqual(float(note.split()[5]), 72.0)
+
+    def test_lambda_on_amplitude_produces_constant_return_value(self):
+        # A lambda assigned to amplitude is called once per note.
+        # The return value appears at position [3] in the score line.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_amps(lambda note: 0.25))
+        gen.note_limit = 4
+        gen.generate_notes()
+
+        for note in gen.notes:
+            self.assertAlmostEqual(float(note.split()[3]), 0.25)
+
+    def test_lambda_on_percent_produces_constant_return_value(self):
+        # A lambda assigned to percent is called once per note.
+        # The return value appears at position [7] in the score line.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_percent(lambda note: 0.99))
+        gen.note_limit = 4
+        gen.generate_notes()
+
+        for note in gen.notes:
+            self.assertAlmostEqual(float(note.split()[7]), 0.99)
+
+    def test_lambda_on_pan_can_read_note_rhythm(self):
+        # Lambdas receive the note object after rhythm is set, so they can
+        # reference note.rhythm to compute a value. This is the pattern used
+        # in csound-pieces for tempo-aware pfield values.
+        # At 120bpm, q = 0.5s.  The lambda returns rhythm * 100 = 50.0.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_pan(lambda note: note.rhythm * 100))
+        gen.note_limit = 2
+        gen.generate_notes()
+
+        for note in gen.notes:
+            self.assertAlmostEqual(float(note.split()[5]), 50.0)
+
+    def test_lambda_produces_different_values_per_note(self):
+        # Lambdas are called fresh for each note, so they can vary per note.
+        counter = {'n': 0}
+
+        def incrementing_pan(note):
+            counter['n'] += 10
+            return float(counter['n'])
+
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches('c4')
+               .with_pan(incrementing_pan))
+        gen.note_limit = 3
+        gen.generate_notes()
+
+        pan_values = [float(note.split()[5]) for note in gen.notes]
+        self.assertEqual(pan_values, [10.0, 20.0, 30.0])
+=======
     #   [5] = pan  ...
 
     def test_with_instr_sets_instrument_number_in_score(self):
