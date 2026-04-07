@@ -5,14 +5,18 @@ from operator import truediv
 from thuja.streamkeys import StreamKey, keys
 from thuja.itemstream import Itemstream
 from thuja.itemstream import notetypes
-
 from thuja.event import Event
-from thuja import utils
 from collections import OrderedDict
 import copy
 import funcsigs
 import threading
 import time
+
+import thuja.utils as utils
+import thuja.csound_utils as cs_utils
+
+import ctcsound
+
 
 
 class NoteGenerator:
@@ -280,9 +284,10 @@ class NoteGenerator:
 
             for key in self.streams.keys():
                 # this could be a literal or ItemStream
-                if callable(self.streams[key]):
-                    value = self.streams[key](note)
-                    note.pfields[key] = value
+                if key is not keys.rhythm and key in note.pfields:
+                    if callable(self.streams[key]):
+                        value = self.streams[key](note)
+                        note.pfields[key] = value
 
             # the note is fully initialized. Run the list of post process in order.
             for item in self.post_processes:
@@ -295,6 +300,16 @@ class NoteGenerator:
                 if rhythm_not_set:
                     assert note.rhythm is not None
                     self.cur_time = self.cur_time + note.rhythm
+
+            # 2026.03.17 - There's a chicken and the egg thing here. I have a mix of usage where callables (lambdas mainly) are used
+            #   to set pfields which post_processes rely on, and in other cases (like some indexing pieces) it's
+            #   vice versa. I think this check for an unset key is safe, but let's keep an eye.
+            for key in self.streams.keys():
+                # this could be a literal or ItemStream
+                if key is not keys.rhythm and key in note.pfields:
+                    if (note.pfields[key] == None or note.pfields[key] == '') and callable(self.streams[key]):
+                        value = self.streams[key](note)
+                        note.pfields[key] = value
 
             # 2025.03.31: moving this back to precede post_processing
             #           legacy comments below:
@@ -583,3 +598,21 @@ class NoteGeneratorThread(threading.Thread):
         print(str(len(self.g.notes)) + " post-copy.")
         # print(self.g.generate_score_string())
 
+
+def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
+    cs = cs_utils.init_csound_with_orc(['-o'+device_string, '--devices', '-+rtaudio=CoreAudio'],
+                                       orc_file,
+                                       True,
+                                       None)
+    cs.readScore(scorestring)
+    cs.start()
+    cpt = ctcsound.CsoundPerformanceThread(cs.csound())
+    cpt.play()
+
+    t = NoteGeneratorThread(g, cs, cpt)
+    t.daemon = True
+    t.start()
+    return t
+
+def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
+    return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string)
