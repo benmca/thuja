@@ -659,5 +659,116 @@ class TestGenerators(unittest.TestCase):
         line = Line().with_pitches(stream)
         self.assertEqual(line.streams[keys.frequency].notetype, notetypes.pitch)
 
+    # ------------------------------------------------------------------ #
+    # Pitch stream edge cases: rests, octave persistence, chords+rests  (#33)
+    # ------------------------------------------------------------------ #
+    # Line pfield positions in the score line (split by whitespace):
+    #   [0] = 'i' + instrument   [3] = amplitude
+    #   [1] = start_time         [4] = frequency
+    #   [2] = duration           [5] = pan  ...
+
+    def test_rest_produces_frequency_zero(self):
+        # 'r' in a pitch stream resolves to frequency 0.
+        # The amplitude stream is unaffected — only frequency changes.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches(Itemstream(['c4', 'r', 'e4'], notetype=notetypes.pitch,
+                                        streammode=streammodes.sequence)))
+        gen.note_limit = 3
+        gen.generate_notes()
+
+        freqs = [float(note.split()[4]) for note in gen.notes]
+        self.assertGreater(freqs[0], 0)   # c4 → non-zero freq
+        self.assertEqual(freqs[1], 0.0)   # 'r' → frequency 0
+        self.assertGreater(freqs[2], 0)   # e4 → non-zero freq
+
+    def test_rest_does_not_zero_amplitude(self):
+        # 'r' only sets frequency to 0 — it does not modify the amplitude stream.
+        # The amplitude value from the amp stream is still emitted for a rest note.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches(Itemstream(['c4', 'r'], notetype=notetypes.pitch,
+                                        streammode=streammodes.sequence))
+               .with_amps(0.75))
+        gen.note_limit = 2
+        gen.generate_notes()
+
+        amp_on_rest = float(gen.notes[1].split()[3])
+        self.assertAlmostEqual(amp_on_rest, 0.75)
+
+    def test_octave_persistence_bare_note_inherits_previous_octave(self):
+        # When a pitch name has no octave digit, it inherits the octave
+        # from the previous pitch in the stream.
+        # 'c4 d e' → c4, d4, e4 (d and e inherit octave 4 from c4)
+        stream = Itemstream(['c4', 'd', 'e'], notetype=notetypes.pitch,
+                            streammode=streammodes.sequence)
+        c4_freq = stream.get_next_value()
+        d4_freq = stream.get_next_value()
+        e4_freq = stream.get_next_value()
+
+        # Verify that d and e resolved to octave 4 by checking against
+        # streams where the octave is explicitly specified
+        stream_explicit = Itemstream(['c4', 'd4', 'e4'], notetype=notetypes.pitch,
+                                     streammode=streammodes.sequence)
+        self.assertAlmostEqual(c4_freq, stream_explicit.get_next_value())
+        self.assertAlmostEqual(d4_freq, stream_explicit.get_next_value())
+        self.assertAlmostEqual(e4_freq, stream_explicit.get_next_value())
+
+    def test_octave_persistence_updates_when_new_octave_specified(self):
+        # A new octave digit resets the persistent octave for subsequent pitches.
+        # 'c4 d c5 e' → c4, d4, c5, e5
+        stream = Itemstream(['c4', 'd', 'c5', 'e'], notetype=notetypes.pitch,
+                            streammode=streammodes.sequence)
+        freqs = [stream.get_next_value() for _ in range(4)]
+
+        explicit = Itemstream(['c4', 'd4', 'c5', 'e5'], notetype=notetypes.pitch,
+                              streammode=streammodes.sequence)
+        expected = [explicit.get_next_value() for _ in range(4)]
+
+        for f, e in zip(freqs, expected):
+            self.assertAlmostEqual(f, e)
+
+    def test_octave_does_not_persist_across_separate_streams(self):
+        # Octave state is per-stream — a new Itemstream always starts
+        # with octave 0 (no inherited octave from a previous stream).
+        stream1 = Itemstream(['c4'], notetype=notetypes.pitch, streammode=streammodes.sequence)
+        stream2 = Itemstream(['d'], notetype=notetypes.pitch, streammode=streammodes.sequence)
+
+        stream1.get_next_value()   # sets stream1's current_octave to 4
+        d_no_octave = stream2.get_next_value()  # stream2 starts fresh
+
+        stream_explicit = Itemstream(['d4'], notetype=notetypes.pitch, streammode=streammodes.sequence)
+        d4_freq = stream_explicit.get_next_value()
+
+        # 'd' without context should NOT resolve to d4 — it inherits stream2's default octave (0)
+        self.assertNotAlmostEqual(d_no_octave, d4_freq)
+
+    def test_chord_with_rest_in_same_stream(self):
+        # A pitch stream can contain chords (nested lists) and rests side by side.
+        # Chord: 3 simultaneous notes. Rest: 1 note with frequency 0.
+        gen = (Line()
+               .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
+               .with_pitches(Itemstream([['c4', 'e4', 'g4'], 'r', 'd4'],
+                                        notetype=notetypes.pitch,
+                                        streammode=streammodes.sequence)))
+        gen.note_limit = 5   # chord(3) + rest(1) + single(1)
+        gen.generate_notes()
+
+        freqs = [float(note.split()[4]) for note in gen.notes]
+        start_times = [float(note.split()[1]) for note in gen.notes]
+
+        # First 3 notes share the same start time (the chord)
+        self.assertEqual(start_times[0], start_times[1])
+        self.assertEqual(start_times[1], start_times[2])
+        # All chord frequencies are non-zero
+        self.assertTrue(all(f > 0 for f in freqs[:3]))
+
+        # 4th note is the rest: frequency = 0
+        self.assertEqual(freqs[3], 0.0)
+
+        # 5th note is d4: frequency > 0, starts after the rest
+        self.assertGreater(freqs[4], 0)
+        self.assertGreater(start_times[4], start_times[3])
+
 if __name__ == '__main__':
     unittest.main()
