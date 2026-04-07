@@ -853,7 +853,16 @@ class TestGenerators(unittest.TestCase):
 
         pan_values = [float(note.split()[5]) for note in gen.notes]
         self.assertEqual(pan_values, [10.0, 20.0, 30.0])
-=======
+
+    # ------------------------------------------------------------------ #
+    # Line fluent API: with_instr, with_index, path notetype, pfields  (#34)
+    # ------------------------------------------------------------------ #
+    # Line default pfield order in the score string (split by whitespace):
+    #   [0] = 'i' + instrument    instrument is embedded: 'i1', 'i4', etc.
+    #   [1] = start_time
+    #   [2] = duration
+    #   [3] = amplitude
+    #   [4] = frequency
     #   [5] = pan  ...
 
     def test_with_instr_sets_instrument_number_in_score(self):
