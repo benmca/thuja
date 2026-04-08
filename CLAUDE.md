@@ -122,7 +122,7 @@ Children inherit parent's timing constraints (start_time, time_limit, note_limit
 
 ## File Organization
 
-- `thuja/`: Core module with 7 main files
+- `thuja/`: Core module with 8 main files (includes `link_follower.py`)
 - `examples/`: Demonstration files (best current documentation per README)
 - `examples/NoteGenerator/`: Additional generator examples
 - `tests/`: Unit tests covering itemstreams, generators, utils
@@ -143,7 +143,7 @@ These files are the project's institutional memory. Keeping them current is not 
 
 ## Experimental / Proposals
 
-- **[LinkFollowerProposal.md](LinkFollowerProposal.md)**: Architecture proposal for syncing NoteGeneratorThread to Ableton Link. Thuja follows Link tempo; Phase 2 adds quantized regeneration at beat/bar boundaries.
+- **[LinkFollower-Plan.md](LinkFollower-Plan.md)**: Implementation plan for syncing `NoteGeneratorThread` to Ableton Link. Phase 1 (tempo following) and Phase 2 (quantized regeneration) are implemented on branch `feature/link-follower`.
 
 ## Experimental Prompts
 
