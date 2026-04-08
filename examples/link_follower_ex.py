@@ -83,10 +83,10 @@ except Exception as e:
 
 log("Starting Csound...")
 try:
-    # sine.orc uses only instr 1 (p3=dur, p4=amp, p5=freq) and f1 (sine wave).
-# The scorestring primes Csound with the f-table and runs indefinitely.
-t = kickoff(g, 'sine.orc',
-            scorestring='f1 0 16384 10 1\ne\n',
+# sine.orc uses only instr 1 (p3=dur, p4=amp, p5=freq) and f1 (sine wave).
+# A long silent i1 event keeps Csound alive so the thread can send notes.
+    t = kickoff(g, 'sine.orc',
+            scorestring='f1 0 16384 10 1\ni1 0 7200 0 440\n',
             device_string='dac0',
             link_follower=lf)
     log("Csound started. Thread running.")
