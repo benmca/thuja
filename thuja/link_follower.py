@@ -36,12 +36,26 @@ class LinkFollower:
     # Connection
     # ------------------------------------------------------------------
 
-    def connect(self):
-        """Open TCP socket to carabiner, receive initial status."""
+    def connect(self, timeout=5.0):
+        """Open TCP socket to carabiner, receive initial status.
+
+        Raises socket.timeout if carabiner does not respond within `timeout` seconds.
+        Raises ValueError if the status line cannot be parsed (wrong protocol/version).
+        """
         self._sock = self._socket_factory()
+        self._sock.settimeout(timeout)
         self._sock.connect((self._host, self._port))
         line = self._recv_line_blocking()
+        if not line:
+            raise ValueError("carabiner connected but sent no data within " + str(timeout) + "s")
+        print("[LinkFollower] raw status: " + repr(line), flush=True)
         self._apply_status(line)
+        if self._bpm is None:
+            raise ValueError(
+                "carabiner status line did not match expected format.\n"
+                "  received: " + repr(line) + "\n"
+                "  expected: (status bpm <N> beat <N> ...)"
+            )
 
     def disconnect(self):
         """Close socket cleanly."""

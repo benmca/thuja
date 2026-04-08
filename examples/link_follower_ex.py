@@ -3,20 +3,42 @@ link_follower_ex.py — Ableton Link tempo following with a NoteGeneratorThread.
 
 Requires:
   - Csound installed
-  - carabiner running on localhost:17000  (brew install carabiner, then: carabiner)
+  - carabiner running on localhost:17000
   - Ableton Live (or any Link-enabled app) open with Link enabled
 
 See examples/LinkFollower-GettingStarted.md for full setup instructions.
 """
 
+import sys
 import time
-from thuja.itemstream import streammodes, notetypes, Itemstream
-from thuja.notegenerator import Line, kickoff
-from thuja.link_follower import LinkFollower
+import traceback
+
+def log(msg):
+    print("[link_follower_ex] " + msg, flush=True)
+
+log("Script starting.")
+log("Python: " + sys.version)
 
 # ---------------------------------------------------------------------------
-# Generator — based on examples/thuja_ex.py
+# Imports — log each so we can catch any import failure
 # ---------------------------------------------------------------------------
+
+log("Importing thuja modules...")
+try:
+    from thuja.itemstream import streammodes, notetypes, Itemstream
+    from thuja.notegenerator import Line, kickoff
+    from thuja.link_follower import LinkFollower
+    log("Imports OK.")
+except Exception as e:
+    log("IMPORT ERROR: " + str(e))
+    traceback.print_exc()
+    sys.exit(1)
+
+# ---------------------------------------------------------------------------
+# Generator
+# ---------------------------------------------------------------------------
+
+log("Building generator...")
 
 pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
                      + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
@@ -26,7 +48,7 @@ pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', '
 
 rhythms = Itemstream('s s s s e e'.split(),
                      streammode=streammodes.sequence,
-                     tempo=120,          # overridden at runtime by LinkFollower
+                     tempo=120,
                      notetype=notetypes.rhythm)
 
 g = (
@@ -50,26 +72,37 @@ g.gen_lines = [';sine\n',
                'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
 
 g.generate_notes()
+log("Generator ready. Notes: " + str(len(g.notes)))
 
 # ---------------------------------------------------------------------------
 # Connect to Ableton Link via carabiner
 # ---------------------------------------------------------------------------
 
-lf = LinkFollower(host='localhost', port=17000, quantum=4)
-lf.connect()
-print("Connected to Link session. BPM: " + str(lf.bpm))
+log("Connecting to carabiner on localhost:17000...")
+try:
+    lf = LinkFollower(host='localhost', port=17000, quantum=4)
+    lf.connect()
+    log("Connected. BPM=" + str(lf.bpm) + "  last_beat=" + str(lf._last_beat))
+except Exception as e:
+    log("CARABINER CONNECTION ERROR: " + str(e))
+    traceback.print_exc()
+    sys.exit(1)
 
 # ---------------------------------------------------------------------------
 # Start Csound and the generator thread
-#
-# kickoff() starts Csound, establishes the Link sync point, creates a
-# NoteGeneratorThread with the follower attached, and starts it.
 # ---------------------------------------------------------------------------
 
-t = kickoff(g, 'sine+moog.orc', device_string='dac0', link_follower=lf)
+log("Starting Csound...")
+try:
+    t = kickoff(g, 'sine+moog.orc', device_string='dac0', link_follower=lf)
+    log("Csound started. Thread running.")
+except Exception as e:
+    log("CSOUND START ERROR: " + str(e))
+    traceback.print_exc()
+    sys.exit(1)
 
-print("Playing. Tempo follows Link automatically.")
-print("Change Ableton's tempo to hear Thuja adapt.")
+log("Playing. Tempo follows Link automatically.")
+log("Change Ableton's tempo to hear Thuja adapt.")
 
 # ---------------------------------------------------------------------------
 # Demo: quantized note swap after 8 seconds
@@ -77,15 +110,20 @@ print("Change Ableton's tempo to hear Thuja adapt.")
 
 time.sleep(8)
 
-print("Queuing a note swap at the next bar boundary (quantize=4)...")
-t.gen(quantize=4)   # new notes swap in at the next 4-beat (1-bar) boundary
+log("Queuing note swap at next bar boundary (quantize=4)...")
+try:
+    t.gen(quantize=4)
+except Exception as e:
+    log("GEN ERROR: " + str(e))
+    traceback.print_exc()
 
 # ---------------------------------------------------------------------------
 # Run until interrupted
 # ---------------------------------------------------------------------------
 
+log("Running. Press Ctrl-C to stop.")
 try:
     while True:
         time.sleep(0.5)
 except KeyboardInterrupt:
-    print("Stopping.")
+    log("Stopping.")
