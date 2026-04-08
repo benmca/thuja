@@ -24,13 +24,15 @@ carabiner is a small bridge process that exposes your Mac's Ableton Link session
 brew install carabiner
 ```
 
-If Homebrew doesn't have it, build from source:
+If Homebrew doesn't have it, build from source - but double-check this from in the [carabiner repo readme](https://github.com/Deep-Symmetry/carabiner):
 
 ```bash
 git clone https://github.com/Deep-Symmetry/carabiner.git
 cd carabiner
-cmake .
-make
+mkdir build
+cd build
+cmake ..
+cmake --build .
 ```
 
 ### Start carabiner
@@ -38,7 +40,7 @@ make
 Open a terminal and run:
 
 ```bash
-carabiner
+Carabiner
 ```
 
 You should see output like:
@@ -60,10 +62,10 @@ With carabiner running and Ableton Link enabled, open a second terminal and run:
 nc localhost 17000
 ```
 
-You should immediately receive a status line like:
+Type `status` and press Enter. You should receive a status line like:
 
 ```
-(status bpm 120.000 beat 4.000 phase 0.000 metro (0.000 0.000))
+status { :peers 1 :bpm 120.000000 :start 285332905719 :beat 4.000000 }
 ```
 
 The `bpm` value should match what Ableton shows. Press `Ctrl-C` to exit.
