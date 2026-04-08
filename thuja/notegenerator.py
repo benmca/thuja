@@ -641,7 +641,8 @@ class NoteGeneratorThread(threading.Thread):
         # print(self.g.generate_score_string())
 
 
-def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
+def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+            link_follower=None):
     cs = cs_utils.init_csound_with_orc(['-o'+device_string, '--devices', '-+rtaudio=CoreAudio'],
                                        orc_file,
                                        True,
@@ -651,10 +652,15 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
     cpt = ctcsound.CsoundPerformanceThread(cs.csound())
     cpt.play()
 
-    t = NoteGeneratorThread(g, cs, cpt)
+    if link_follower is not None:
+        link_follower.establish_sync(cs.scoreTime())
+
+    t = NoteGeneratorThread(g, cs, cpt, link_follower=link_follower)
     t.daemon = True
     t.start()
     return t
 
-def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
-    return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string)
+def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+       link_follower=None):
+    return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string,
+                   link_follower=link_follower)

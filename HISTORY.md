@@ -155,10 +155,12 @@ The sync point `(csound_time, link_beat, bpm)` must be re-recorded any time BPM 
 ### New Files
 
 - **`thuja/link_follower.py`** — `LinkFollower` class; standalone, no thuja dependency
+- **`examples/link_follower_ex.py`** — end-to-end example: connects to carabiner, starts a generator thread, demonstrates quantized swap
+- **`examples/LinkFollower-GettingStarted.md`** — setup guide: carabiner install on macOS, verifying Link, running the example
 
 ### Modified Files
 
-- **`thuja/notegenerator.py`** — `NoteGeneratorThread`: added `link_follower` param, `_pending_swap`, `gen(quantize=...)`, `_poll_link()`, `_check_pending_swap()`, `_update_tempos()`, `_set_generator_tempos()`
+- **`thuja/notegenerator.py`** — `NoteGeneratorThread`: added `link_follower` param, `_pending_swap`, `gen(quantize=...)`, `_poll_link()`, `_check_pending_swap()`, `_update_tempos()`, `_set_generator_tempos()`; `kickoff()` and `ko()` accept `link_follower=None` and call `establish_sync()` before starting the thread
 - **`CLAUDE.md`** — updated `LinkFollowerProposal.md` reference to `LinkFollower-Plan.md`; updated file count to 8
 - **`tests/todos.md`** — LinkFollower coverage added to "Already Covered"; NoteGeneratorThread note updated
 - **`HISTORY.md`** — this entry
