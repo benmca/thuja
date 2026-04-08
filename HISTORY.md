@@ -126,3 +126,42 @@ Full pass over `tests/todos.md`: all newly covered items moved to "Already Cover
 ### Test Count
 
 53 tests at start of session. End of session: 86 tests (across master after all PRs merged).
+
+---
+
+## 2026-04-08 — LinkFollower Implementation (feature/link-follower)
+
+### Context
+
+First implementation pass on the Ableton Link sync feature described in `LinkFollower-Plan.md`. Goal: tempo following (Phase 1) and quantized note regeneration (Phase 2) wired into `NoteGeneratorThread`, with all existing behavior unaffected.
+
+### Design Decisions
+
+**`target_beat` not `target_csound_time`**
+Quantized swaps store the Link beat number as the target, not the equivalent Csound time. Csound time for a given beat changes when tempo changes; the Link beat number does not. `_check_pending_swap()` recomputes `current_beat()` live each tick using the current sync point, so the check stays accurate across tempo changes without updating the target.
+
+**`establish_sync()` called on every tempo change**
+The sync point `(csound_time, link_beat, bpm)` must be re-recorded any time BPM changes. `_poll_link()` calls `establish_sync()` immediately after detecting a change, before `_update_tempos()`, so that all subsequent `current_beat()` calls use the new BPM.
+
+**`next_boundary()` uses strictly-next semantics**
+`floor(cb / q) + 1` rather than `ceil(cb / q)`. If `gen(quantize=4)` is called exactly on a bar boundary, the swap waits for the following bar, not the current one. This avoids an immediate swap that defeats the purpose of quantization.
+
+**Mock socket via `_socket_factory` injection**
+`LinkFollower.__init__` accepts an optional `_socket_factory` callable. Tests pass a factory that returns a `MagicMock` socket. This keeps the class clean (no test-only hooks) while making all 12 tests runnable without a live carabiner process.
+
+**All `NoteGeneratorThread` changes are additive**
+`link_follower=None` default; all new logic gated on non-None. `_poll_link()` and `_check_pending_swap()` are no-ops when `link_follower` is None. Zero impact on existing call sites.
+
+### New Files
+
+- **`thuja/link_follower.py`** — `LinkFollower` class; standalone, no thuja dependency
+
+### Modified Files
+
+- **`thuja/notegenerator.py`** — `NoteGeneratorThread`: added `link_follower` param, `_pending_swap`, `gen(quantize=...)`, `_poll_link()`, `_check_pending_swap()`, `_update_tempos()`, `_set_generator_tempos()`
+- **`tests/todos.md`** — LinkFollower coverage added to "Already Covered"; NoteGeneratorThread note updated
+- **`HISTORY.md`** — this entry
+
+### Test Count
+
+86 tests at start of session. End of session: 113 tests.

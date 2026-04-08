@@ -4,7 +4,7 @@ This document tracks outstanding test coverage gaps. Items are removed as tests 
 
 **NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-Last updated: 2026-04-07
+Last updated: 2026-04-08
 
 ---
 
@@ -103,9 +103,24 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 
 ---
 
+**feature/link-follower (LinkFollower + NoteGeneratorThread integration):**
+- `LinkFollower.connect()` — parses BPM and beat from carabiner initial status
+- `LinkFollower.establish_sync()` — stores (csound_time, link_beat, bpm) sync point
+- `LinkFollower.current_beat()` — correct math; survives tempo change + re-sync
+- `LinkFollower.csound_time_for_beat()` — inverse of current_beat; round-trip verified
+- `LinkFollower.next_boundary()` — strictly-next quantum boundary; beat/bar/exactly-on cases
+- `LinkFollower.poll()` — returns None when no change; returns new BPM on change
+- `NoteGeneratorThread._update_tempos()` — sets tempo on all rhythm-notetype streams
+- `NoteGeneratorThread._poll_link()` — calls _update_tempos when poll returns new BPM
+- `NoteGeneratorThread.gen(quantize=...)` — sets _pending_swap with correct target_beat
+- `NoteGeneratorThread._check_pending_swap()` — fires swap at target_beat; doesn't fire early
+- `target_beat` survives tempo change (stored as Link beat number, not Csound time)
+
+---
+
 ## Not Worth Testing Now
 
-- **NoteGeneratorThread** — requires live Csound; unit-test coverage impractical without mocking ctcsound
+- **NoteGeneratorThread run loop** — requires live Csound; _poll_link/_check_pending_swap are tested directly
 - **Tempo as callable** — 0 files in wild
 - **UDP send methods** — 0 files in wild
 - **csound_utils** — integration-only; requires Csound installed

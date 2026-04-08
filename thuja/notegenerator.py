@@ -11,6 +11,7 @@ import copy
 import funcsigs
 import threading
 import time
+from collections import namedtuple
 
 import thuja.utils as utils
 import thuja.csound_utils as cs_utils
@@ -539,9 +540,12 @@ class Line(NoteGenerator):
 
 
 
+_PendingSwap = namedtuple('PendingSwap', ['notes', 'target_beat'])
+
+
 class NoteGeneratorThread(threading.Thread):
 
-    def __init__(self, g, cs, cpt, sleep_interval=.0001):
+    def __init__(self, g, cs, cpt, sleep_interval=.0001, link_follower=None):
         self.g = g
         self.cs = cs
         self.cpt = cpt
@@ -549,6 +553,8 @@ class NoteGeneratorThread(threading.Thread):
         self.stop_event = threading.Event()
         self.thread = threading.Thread.__init__(self)
         self.lock = threading.Lock()
+        self.link_follower = link_follower
+        self._pending_swap = None
         return
 
     def run(self):
@@ -565,17 +571,15 @@ class NoteGeneratorThread(threading.Thread):
         arbitrary_score_time = 0
         while not self.stop_event.is_set():
             score_time = cs.scoreTime()
-            # if arbitrary_score_time < g.time_limit:
-                # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
-            # print("score time: " + str(score_time))
+
+            self._poll_link()
+            self._check_pending_swap()
 
             if(self.lock.locked() == False):
                 self.lock.acquire()
-                # for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
                 for note in [note for note in g.notes if
                              float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (
                                      score_time)]:
-                    # print(str(note))
                     n = note.split()
                     n[1] = '0.0'
                     new_note = '\t'.join(n)
@@ -587,15 +591,53 @@ class NoteGeneratorThread(threading.Thread):
 
         self.stop_event.clear()
 
-    def gen(self):
+    def gen(self, quantize=None):
         print(str(len(self.g.notes)) + " pre-copy.")
         temp = self.g.deepcopy_tree()
         temp.generate_notes()
         print(str(len(temp.notes)) + " generated. Copying...")
-        self.lock.acquire()
-        self.g.notes = temp.notes
-        self.lock.release()
-        print(str(len(self.g.notes)) + " post-copy.")
+        if quantize is None or self.link_follower is None:
+            self.lock.acquire()
+            self.g.notes = temp.notes
+            self.lock.release()
+            print(str(len(self.g.notes)) + " post-copy.")
+        else:
+            q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
+            target = self.link_follower.next_boundary(self._csound_time(), quantum=q)
+            self._pending_swap = _PendingSwap(notes=temp.notes, target_beat=target)
+            print("Swap queued at beat " + str(target))
+
+    def _csound_time(self):
+        return self.cs.scoreTime()
+
+    def _poll_link(self):
+        """Check for a BPM change from the Link session and update tempos."""
+        if self.link_follower is None or not self.link_follower.connected:
+            return
+        new_bpm = self.link_follower.poll()
+        if new_bpm is not None:
+            self.link_follower.establish_sync(self._csound_time())
+            self._update_tempos(new_bpm)
+
+    def _check_pending_swap(self):
+        """Fire a queued quantized note swap if the target beat has been reached."""
+        if self._pending_swap is None or self.link_follower is None:
+            return
+        if self.link_follower.current_beat(self._csound_time()) >= self._pending_swap.target_beat:
+            with self.lock:
+                self.g.notes = self._pending_swap.notes
+                self._pending_swap = None
+
+    def _update_tempos(self, bpm):
+        """Set tempo on all rhythm-notetype Itemstreams in generator and children."""
+        self._set_generator_tempos(self.g, bpm)
+
+    def _set_generator_tempos(self, generator, bpm):
+        for stream in generator.streams.values():
+            if isinstance(stream, Itemstream) and stream.notetype == notetypes.rhythm:
+                stream.tempo = bpm
+        for child in generator.generators:
+            self._set_generator_tempos(child, bpm)
         # print(self.g.generate_score_string())
 
 
