@@ -27,7 +27,7 @@ brew install carabiner
 If Homebrew doesn't have it, build from source:
 
 ```bash
-git clone https://github.com/brunchboy/carabiner.git
+git clone https://github.com/Deep-Symmetry/carabiner.git
 cd carabiner
 cmake .
 make
