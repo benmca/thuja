@@ -143,6 +143,8 @@ These files are the project's institutional memory. Keeping them current is not 
 
 ## Experimental / Proposals
 
+- **[StreamingGeneration-Plan.md](StreamingGeneration-Plan.md)**: Plan for on-demand note generation in `NoteGeneratorThread`. Replaces pre-baked notes list with a lookahead buffer fed by a new `generate_next_note()` method. Enables sub-2s tempo-change responsiveness for Link following.
+
 - **[LinkFollower-Plan.md](LinkFollower-Plan.md)**: Implementation plan for syncing `NoteGeneratorThread` to Ableton Link. Phase 1 (tempo following) and Phase 2 (quantized regeneration) are implemented on branch `feature/link-follower`.
 
 ## Experimental Prompts
