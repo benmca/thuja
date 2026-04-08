@@ -159,6 +159,7 @@ The sync point `(csound_time, link_beat, bpm)` must be re-recorded any time BPM 
 ### Modified Files
 
 - **`thuja/notegenerator.py`** — `NoteGeneratorThread`: added `link_follower` param, `_pending_swap`, `gen(quantize=...)`, `_poll_link()`, `_check_pending_swap()`, `_update_tempos()`, `_set_generator_tempos()`
+- **`CLAUDE.md`** — updated `LinkFollowerProposal.md` reference to `LinkFollower-Plan.md`; updated file count to 8
 - **`tests/todos.md`** — LinkFollower coverage added to "Already Covered"; NoteGeneratorThread note updated
 - **`HISTORY.md`** — this entry
 
