@@ -6,7 +6,11 @@ from collections import namedtuple
 _SyncPoint = namedtuple('SyncPoint', ['csound_time', 'link_beat', 'bpm'])
 _PendingSwap = namedtuple('PendingSwap', ['notes', 'target_beat'])
 
-_STATUS_RE = re.compile(r'\(status bpm ([\d.]+) beat ([\d.]+)')
+# Carabiner 1.2+ format: status { :peers N :bpm 120.0 :start N :beat N }
+# Carabiner legacy format: (status bpm 120.0 beat 0.0 ...)
+# Both are matched by making the leading colon optional.
+_BPM_RE  = re.compile(r':?bpm\s+([\d.]+)')
+_BEAT_RE = re.compile(r':?beat\s+([\d.]+)')
 
 
 class LinkFollower:
@@ -48,7 +52,6 @@ class LinkFollower:
         line = self._recv_line_blocking()
         if not line:
             raise ValueError("carabiner connected but sent no data within " + str(timeout) + "s")
-        print("[LinkFollower] raw status: " + repr(line), flush=True)
         self._apply_status(line)
         if self._bpm is None:
             raise ValueError(
@@ -167,11 +170,15 @@ class LinkFollower:
         return result
 
     def _apply_status(self, line):
-        """Parse a carabiner status s-expression and update internal state.
+        """Parse a carabiner status line and update internal state.
 
-        Format: (status bpm 120.000 beat 0.000 phase 0.000 metro (0.000 0.000))
+        Handles both protocol formats:
+          1.2+:   status { :peers N :bpm 120.0 :start N :beat N }
+          legacy: (status bpm 120.0 beat 0.0 phase 0.0 metro (...))
         """
-        m = _STATUS_RE.search(line)
-        if m:
-            self._bpm = float(m.group(1))
-            self._last_beat = float(m.group(2))
+        bpm_m  = _BPM_RE.search(line)
+        beat_m = _BEAT_RE.search(line)
+        if bpm_m:
+            self._bpm = float(bpm_m.group(1))
+        if beat_m:
+            self._last_beat = float(beat_m.group(1))

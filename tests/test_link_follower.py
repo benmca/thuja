@@ -21,8 +21,12 @@ from collections import OrderedDict
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Carabiner legacy format (pre-1.2)
 STATUS_120 = '(status bpm 120.000 beat 4.000 phase 0.000 metro (0.000 0.000))\n'
 STATUS_140 = '(status bpm 140.000 beat 8.000 phase 0.000 metro (0.000 0.000))\n'
+# Carabiner 1.2+ format
+STATUS_120_NEW = 'status { :peers 1 :bpm 120.000000 :start 285332905719 :beat 4.000000 }\n'
+STATUS_140_NEW = 'status { :peers 1 :bpm 140.000000 :start 285332905719 :beat 8.000000 }\n'
 
 
 def _make_mock_socket(responses):
@@ -77,6 +81,19 @@ class TestConnect(unittest.TestCase):
         lf, _ = _make_follower(STATUS_120)
         # internal _last_beat should be 4.0 (from STATUS_120)
         self.assertAlmostEqual(lf._last_beat, 4.0)
+
+    def test_connect_parses_new_format(self):
+        # Carabiner 1.2+ format: status { :peers N :bpm X :start N :beat X }
+        lf, _ = _make_follower(STATUS_120_NEW)
+        self.assertAlmostEqual(lf.bpm, 120.0)
+        self.assertAlmostEqual(lf._last_beat, 4.0)
+
+    def test_poll_returns_bpm_on_change_new_format(self):
+        lf, sock = _make_follower(STATUS_120_NEW)
+        sock.recv.side_effect = [STATUS_140_NEW.encode('utf-8'), BlockingIOError]
+        result = lf.poll()
+        self.assertAlmostEqual(result, 140.0)
+        self.assertAlmostEqual(lf.bpm, 140.0)
 
 
 # ---------------------------------------------------------------------------
