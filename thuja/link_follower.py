@@ -49,6 +49,8 @@ class LinkFollower:
         self._sock = self._socket_factory()
         self._sock.settimeout(timeout)
         self._sock.connect((self._host, self._port))
+        # Carabiner 1.2+ does not push status on connect; request it explicitly.
+        self._sock.sendall(b'status\n')
         line = self._recv_line_blocking()
         if not line:
             raise ValueError("carabiner connected but sent no data within " + str(timeout) + "s")
