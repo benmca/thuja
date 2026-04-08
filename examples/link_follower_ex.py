@@ -59,7 +59,7 @@ g = (
     .with_freqs(pitches)
 )
 
-g.note_limit = len(pitches.values) * 4
+g.time_limit = 7200   # generate 2 hours of notes; cycles through pitch/rhythm material
 
 g.generate_notes()
 log("Generator ready. Notes: " + str(len(g.notes)))
