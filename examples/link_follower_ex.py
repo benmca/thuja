@@ -52,28 +52,17 @@ rhythms = Itemstream('s s s s e e'.split(),
                      notetype=notetypes.rhythm)
 
 g = (
-    Line().with_instr(2)
+    Line().with_instr(1)
     .with_rhythm(rhythms)
     .with_duration(.1)
     .with_amps(1)
     .with_freqs(pitches)
-    .with_pan(45)
-    .with_dist(10)
-    .with_percent(.1)
 )
 
 g.note_limit = len(pitches.values) * 4
 
-g.gen_lines = [';sine\n',
-               'f 1 0 16384 10 1\n',
-               ';saw',
-               'f 2 0 256 7 0 128 1 0 -1 128 0\n',
-               ';pulse\n',
-               'f 3 0 256 7 1 128 1 0 -1 128 -1\n']
-
 g.generate_notes()
 log("Generator ready. Notes: " + str(len(g.notes)))
-
 # ---------------------------------------------------------------------------
 # Connect to Ableton Link via carabiner
 # ---------------------------------------------------------------------------
@@ -94,7 +83,12 @@ except Exception as e:
 
 log("Starting Csound...")
 try:
-    t = kickoff(g, 'sine+moog.orc', device_string='dac0', link_follower=lf)
+    # sine.orc uses only instr 1 (p3=dur, p4=amp, p5=freq) and f1 (sine wave).
+# The scorestring primes Csound with the f-table and runs indefinitely.
+t = kickoff(g, 'sine.orc',
+            scorestring='f1 0 16384 10 1\ne\n',
+            device_string='dac0',
+            link_follower=lf)
     log("Csound started. Thread running.")
 except Exception as e:
     log("CSOUND START ERROR: " + str(e))

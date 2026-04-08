@@ -74,7 +74,7 @@ The `bpm` value should match what Ableton shows. Press `Ctrl-C` to exit.
 
 ## Run the Example
 
-The example file is `examples/link_follower_ex.py`. It starts a `NoteGeneratorThread` linked to the current Ableton session tempo, then demonstrates a quantized note swap.
+The example file is `examples/link_follower_ex.py`. It uses `sine.orc` (a simple sine-wave instrument) and starts a `NoteGeneratorThread` linked to the current Ableton session tempo, then demonstrates a quantized note swap.
 
 ```bash
 cd examples
