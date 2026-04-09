@@ -59,10 +59,10 @@ g = (
     .with_freqs(pitches)
 )
 
-g.time_limit = 7200   # generate 2 hours of notes; cycles through pitch/rhythm material
-
-g.generate_notes()
-log("Generator ready. Notes: " + str(len(g.notes)))
+# In streaming mode the thread generates notes on demand — no pre-bake needed.
+# time_limit drives generate_next_note() so the pattern cycles indefinitely.
+g.time_limit = 7200
+log("Generator ready.")
 # ---------------------------------------------------------------------------
 # Connect to Ableton Link via carabiner
 # ---------------------------------------------------------------------------
@@ -88,7 +88,8 @@ try:
     t = kickoff(g, 'sine.orc',
             scorestring='f1 0 16384 10 1\ni1 0 7200 0 440\n',
             device_string='dac0',
-            link_follower=lf)
+            link_follower=lf,
+            streaming=True)
     log("Csound started. Thread running.")
 except Exception as e:
     log("CSOUND START ERROR: " + str(e))

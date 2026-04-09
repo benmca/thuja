@@ -168,3 +168,52 @@ The sync point `(csound_time, link_beat, bpm)` must be re-recorded any time BPM 
 ### Test Count
 
 86 tests at start of session. End of session: 113 tests.
+
+---
+
+## 2026-04-08 — Streaming Note Generation (feature/link-follower)
+
+### Context
+
+Batch `generate_notes()` pre-bakes all note start times at a fixed tempo. When Ableton Link changes the BPM, every pre-baked start time is wrong — the only remedy is a full regeneration. This defeats the purpose of real-time tempo following. Streaming generation produces one note at a time on demand, so tempo changes take effect within one lookahead window.
+
+### Design Decisions
+
+**`generate_next_note()` extracts the loop body**
+The inner loop of `generate_notes()` is already stateful and self-contained: Itemstreams advance their indices, `cur_time` accumulates, octave state persists. Nothing in it requires the full batch to exist first. Extracting it as `generate_next_note()` required minimal refactoring. `generate_notes()` becomes a thin wrapper that calls it in a loop; all existing behavior is preserved.
+
+**`reset_cursor(reset_streams=False)` rewinds timing only**
+Resets `cur_time` to `start_time` and `note_count` to 0 without touching stream state. Used by `gen()` and `_check_pending_swap()` in streaming mode to restart note generation from the current score time. `reset_streams=True` also resets Itemstream indices, heap state, and octave state (full restart).
+
+**Lookahead buffer as a `deque` of `(start_time, note_str)` tuples**
+`NoteGeneratorThread` maintains a deque covering the next `lookahead_secs` (default 2.0s). `_fill_buffer(target)` calls `generate_next_note()` until the buffer covers `target`. On tempo change, `_flush_stale_buffer()` removes notes with `start_time > current_score_time`; the buffer refills on the next tick at the new tempo.
+
+**`_fast_forward_to(target)` prevents burst dispatch after cursor reset**
+After `reset_cursor()`, `cur_time` is at `start_time`. Without fast-forwarding, the first `_fill_buffer()` call would generate notes starting at 0 — all of which would be instantly dispatched as overdue. `_fast_forward_to(score_time)` generates and discards notes up to the current score time before filling the buffer.
+
+**`_pending_swap.notes = None` signals a streaming reset**
+The existing `_PendingSwap` namedtuple is reused for quantized gen() in streaming mode. `notes=None` distinguishes the streaming path (pending cursor reset) from the batch path (pending notes-list swap). No new namedtuple needed.
+
+**Phase 1: children fall back to batch**
+Child generators are processed in a separate pass in `generate_notes()`. In streaming mode, only generators with no children use the new path. Generators with children fall back to batch automatically. Phase 2 (per-child cursors with buffer merge-sort) is deferred.
+
+### Modified Files
+
+- **`thuja/notegenerator.py`** — `NoteGenerator`: `generate_next_note()` extracted from loop body; `reset_cursor(reset_streams=False)` added; `generate_notes()` refactored as thin wrapper. `NoteGeneratorThread`: `streaming=False`, `lookahead_secs=2.0`, `_buffer=deque()` added to `__init__`; `_fill_buffer()`, `_flush_stale_buffer()`, `_fast_forward_to()` added; `run()` has streaming branch; `gen()`, `_poll_link()`, `_check_pending_swap()` updated for streaming path; `kickoff()` and `ko()` accept `streaming=` and `lookahead_secs=` params
+- **`examples/link_follower_ex.py`** — updated to use `streaming=True`, `time_limit=7200` (no pre-bake), comprehensive diagnostic logging
+- **`StreamingGeneration-Plan.md`** — full architecture plan saved before implementation
+- **`tests/test_streaming.py`** — new test suite (see below)
+
+### Test Coverage Added
+
+21 new tests in `tests/test_streaming.py`:
+
+- **`TestGenerateNextNote`**: equivalence with batch `generate_notes()`; exhaustion returns None; `cur_time` advances correctly; `time_limit` respected; `score_dur` matches batch
+- **`TestResetCursor`**: rewinds `cur_time`; resets `note_count`; preserves stream state by default; `reset_streams=True` resets indices; first note after reset matches original
+- **`TestBufferHelpers`**: `_fill_buffer` generates notes up to target; `_fill_buffer` stops at target; `_flush_stale_buffer` removes future notes; `_fast_forward_to` advances `cur_time`; `_fast_forward_to` adds nothing to buffer
+- **`TestStreamingTempoChange`**: `_poll_link` flushes buffer on tempo change; `_poll_link` updates rhythm stream tempo; next notes after tempo change use new BPM
+- **`TestStreamingGen`**: immediate `gen()` resets cursor and fast-forwards; `gen(quantize=4)` sets `_pending_swap` with correct target beat and `notes=None`; `_check_pending_swap` fires and clears at target beat
+
+### Test Count
+
+113 tests at start of session. End of session: 136 tests.

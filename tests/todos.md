@@ -4,7 +4,7 @@ This document tracks outstanding test coverage gaps. Items are removed as tests 
 
 **NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-Last updated: 2026-04-08
+Last updated: 2026-04-08 (streaming)
 
 ---
 
@@ -100,6 +100,17 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 
 **5. `clear_notes()`**
 0 files in wild. Low value.
+
+**feature/link-follower (streaming generation):**
+- `generate_next_note()` — equivalence with batch `generate_notes()`; exhaustion returns None; `cur_time` advances; `time_limit` respected; `score_dur` matches batch
+- `reset_cursor()` — rewinds `cur_time` and `note_count`; preserves stream state by default; `reset_streams=True` resets indices and octave state
+- `NoteGeneratorThread._fill_buffer()` — generates notes up to target time; stops at target
+- `NoteGeneratorThread._flush_stale_buffer()` — removes notes with start_time > score_time
+- `NoteGeneratorThread._fast_forward_to()` — advances cur_time without filling buffer
+- Tempo change via `_poll_link()` — flushes buffer; updates rhythm stream tempo; new notes use new BPM
+- `gen()` immediate in streaming mode — resets cursor, fast-forwards to score_time
+- `gen(quantize=N)` in streaming mode — sets `_pending_swap` with `notes=None` and correct `target_beat`
+- `_check_pending_swap()` in streaming mode — fires and clears at `target_beat`
 
 ---
 
