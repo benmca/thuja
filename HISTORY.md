@@ -217,3 +217,35 @@ Child generators are processed in a separate pass in `generate_notes()`. In stre
 ### Test Count
 
 113 tests at start of session. End of session: 136 tests.
+
+---
+
+## 2026-04-09 — Branch Status Summary (feature/link-follower)
+
+### Streaming Generation — Complete
+
+Everything in `StreamingGeneration-Plan.md` is implemented and committed:
+
+- `generate_next_note()` — single-note on-demand extraction from loop body
+- `reset_cursor(reset_streams=False)` — rewinds timing without touching stream state
+- `generate_notes()` — refactored as thin wrapper; all existing behavior intact
+- `NoteGeneratorThread` — lookahead deque buffer (`_fill_buffer`, `_flush_stale_buffer`, `_fast_forward_to`); streaming `run()` dispatch; streaming paths in `gen()`, `_poll_link()`, `_check_pending_swap()`
+- `kickoff()`/`ko()` — accept `streaming=True` and `lookahead_secs=` params
+- `link_follower_ex.py` — updated to use `streaming=True`, `time_limit=7200`, no pre-bake
+- 21 new tests in `tests/test_streaming.py`; all 136 tests pass
+
+**Phase 2 deferred:** Child generators fall back to batch in streaming mode. Noted in `StreamingGeneration-Plan.md`.
+
+### LinkFollower — Complete
+
+Everything in `LinkFollower-Plan.md` Phase 1 + Phase 2 is implemented and committed:
+
+- `LinkFollower` class — carabiner connection, BPM/beat parsing (both carabiner 1.x and 1.2+ formats), `establish_sync()`, `current_beat()`, `next_boundary()` (strictly-next semantics), `poll()`
+- `NoteGeneratorThread` — `_poll_link()` updates tempos on BPM change, `gen(quantize=N)` queues swap at next beat boundary, `_check_pending_swap()` fires at target beat
+- 12 tests in `tests/test_link_follower.py` using mock socket injection
+
+### What Remains Before PR
+
+1. Live end-to-end test: run `link_follower_ex.py` with carabiner + Ableton to confirm streaming tempo following works in practice
+2. Minor: update `CLAUDE.md` file count (8 → 9 after adding `link_follower.py`)
+3. Open PR: `feature/link-follower` → `master`
