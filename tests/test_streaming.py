@@ -285,7 +285,8 @@ class TestStreamingGen(unittest.TestCase):
         lf = MagicMock()
         lf.connected = True
         lf.next_boundary.return_value = 8.0
-        lf.current_beat.return_value = 7.0
+        lf.current_beat.return_value = 7.0    # floor(7.0)+1 = 8 → next beat
+        lf.csound_time_for_beat.return_value = 5.5   # next beat is at score 5.5
         cs_mock = MagicMock()
         cs_mock.scoreTime.return_value = score_time
         cpt_mock = MagicMock()
@@ -298,8 +299,8 @@ class TestStreamingGen(unittest.TestCase):
         t._fill_buffer(5.0)
         self.assertGreater(t.g.cur_time, 0)
         t.gen()   # no quantize — immediate
-        # cursor should be reset and fast-forwarded to ~5.0
-        self.assertGreaterEqual(t.g.cur_time, 5.0)
+        # cursor should be snapped to the next beat boundary
+        self.assertAlmostEqual(t.g.cur_time, 5.5, places=5)
 
     def test_gen_quantize_sets_pending_swap(self):
         t, lf = self._make_thread()

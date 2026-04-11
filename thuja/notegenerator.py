@@ -575,7 +575,10 @@ class NoteGeneratorThread(threading.Thread):
             if quantize is None or self.link_follower is None:
                 self.g.reset_cursor()
                 self._flush_stale_buffer()
-                self._fast_forward_to(self._csound_time())
+                if self.link_follower is not None:
+                    self._beat_snap_cursor()
+                else:
+                    self._fast_forward_to(self._csound_time())
                 print("Streaming: cursor reset, buffer flushed.")
             else:
                 q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
@@ -643,6 +646,19 @@ class NoteGeneratorThread(threading.Thread):
                 print("[poll_link] new_bpm={} score_time={} last_beat={} next_beat={} g.cur_time={}".format(
                     new_bpm, score_time, self.link_follower._last_beat, next_beat, self.g.cur_time), flush=True)
 
+    def _beat_snap_cursor(self):
+        """Set g.cur_time to the Csound time of the next Link beat boundary.
+
+        Replaces _fast_forward_to() in streaming mode: instead of advancing
+        stream state to score_time (which lands mid-beat), we position the
+        cursor exactly on the next integer beat so the first generated note
+        is phase-locked to the Link grid.
+        """
+        score_time = self._csound_time()
+        current_beat = self.link_follower.current_beat(score_time)
+        next_beat = math.floor(current_beat) + 1
+        self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
+
     def _check_pending_swap(self):
         """Fire a queued quantized swap (batch) or cursor reset (streaming)."""
         if self._pending_swap is None or self.link_follower is None:
@@ -651,7 +667,7 @@ class NoteGeneratorThread(threading.Thread):
             if self._streaming:
                 self.g.reset_cursor()
                 self._flush_stale_buffer()
-                self._fast_forward_to(self._csound_time())
+                self._beat_snap_cursor()
                 self._pending_swap = None
             else:
                 with self.lock:
