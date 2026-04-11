@@ -709,6 +709,12 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
 
     t = NoteGeneratorThread(g, cs, cpt, link_follower=link_follower,
                             streaming=streaming, lookahead_secs=lookahead_secs)
+    if streaming and link_follower is not None:
+        # Sync generator tempo to the current Link BPM before the thread starts.
+        # _update_tempos() only fires on BPM *changes* in the run loop, so if the
+        # session has been at a steady tempo since connect() the generator would
+        # otherwise keep its constructor tempo indefinitely.
+        t._update_tempos(link_follower.bpm)
     t.daemon = True
     t.start()
     return t
