@@ -1,12 +1,12 @@
+import math
 import random
 import sys
 from operator import truediv
 
 from thuja.streamkeys import StreamKey, keys
-from thuja.itemstream import Itemstream
-from thuja.itemstream import notetypes
+from thuja.itemstream import Itemstream, notetypes, streammodes
 from thuja.event import Event
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple, deque
 import copy
 import funcsigs
 import threading
@@ -171,166 +171,136 @@ class NoteGenerator:
         self.notes = []
         self.score_dur = 0
 
+    def generate_next_note(self):
+        """Generate one note, advancing all stream state.
+
+        Returns a note string (e.g. 'i1\t0.0\t0.5\t...\n') or None when
+        note_limit / time_limit is exhausted.
+
+        This is the single-note equivalent of generate_notes(). It drives the
+        same algorithm one iteration at a time so NoteGeneratorThread can fill
+        a lookahead buffer on demand rather than pre-baking the full score.
+        Call reset_cursor() to restart from the beginning.
+        """
+        # Mirror the while-loop guard from generate_notes().
+        if not ((self.note_limit > 0 and self.note_count < self.note_limit) or (self.time_limit > 0)):
+            return None
+
+        note = Event(pfields=self.pfields, start_time=self.cur_time)
+        note_is_chording = False
+        rhythm = None
+
+        for key in self.streams.keys():
+            if key is keys.rhythm:
+                continue
+            if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
+                note.pfields[key] = self.streams[key]
+            elif isinstance(self.streams[key], Itemstream):
+                value = self.streams[key].get_next_value()
+                if isinstance(value, dict):
+                    for item in value.keys():
+                        if item == keys.rhythm:
+                            rhythm = utils.rhythm_to_duration(value[item], self.streams[key].tempo)
+                        elif item == "freq":
+                            result = utils.pc_to_freq(value[item], self.streams[key].current_octave)
+                            self.streams[item].current_octave = result["octave"]
+                            note.pfields[item] = result["value"]
+                        else:
+                            note.pfields[item] = value[item]
+                else:
+                    note.pfields[key] = value
+                if self.streams[key].is_chording:
+                    note_is_chording = True
+
+        if not note_is_chording:
+            if rhythm is not None:
+                self.cur_time = self.cur_time + rhythm
+                note.rhythm = rhythm
+            elif note.rhythm is not None:
+                self.cur_time = self.cur_time + note.rhythm
+            elif keys.rhythm in self.streams and self.streams[keys.rhythm] is not None:
+                rhythm = self.streams[keys.rhythm].get_next_value()
+                self.cur_time = self.cur_time + rhythm
+                note.rhythm = rhythm
+            else:
+                pass
+        else:
+            if isinstance(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], list):
+                print("in chording case, rhythm stream must be a flat list - current value is a list (Nested list case)")
+                assert False
+            tempo = self.streams[keys.rhythm].tempo
+            if isinstance(self.streams[keys.rhythm].tempo, list):
+                tempo = self.streams[keys.rhythm].tempo[self.streams[keys.rhythm].note_count % len(self.streams[keys.rhythm].tempo)]
+            note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], tempo)
+
+        for key in self.streams.keys():
+            if key is not keys.rhythm and key in note.pfields:
+                if callable(self.streams[key]):
+                    value = self.streams[key](note)
+                    note.pfields[key] = value
+
+        for item in self.post_processes:
+            rhythm_not_set = (note.rhythm == None)
+            if callable(item):
+                if len(funcsigs.signature(item).parameters) > 1:
+                    item(note, self.context)
+                else:
+                    item(note)
+            if rhythm_not_set:
+                assert note.rhythm is not None
+                self.cur_time = self.cur_time + note.rhythm
+
+        for key in self.streams.keys():
+            if key is not keys.rhythm and key in note.pfields:
+                if (note.pfields[key] == None or note.pfields[key] == '') and callable(self.streams[key]):
+                    value = self.streams[key](note)
+                    note.pfields[key] = value
+
+        # Enforce time limit — mirrors the break in the original generate_notes() loop.
+        if self.cur_time > self.time_limit > 0:
+            return None
+
+        self.note_count += 1
+        if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
+            self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
+
+        return str(note) + "\n"
+
+    def reset_cursor(self, reset_streams=False):
+        """Rewind the generation cursor to start_time.
+
+        reset_streams=False (default): keep Itemstream positions — the pattern
+            continues from its current state with time reset to start_time.
+        reset_streams=True: reset all stream indices, heap state, and octave
+            tracking — full restart of the pattern from the beginning.
+        """
+        self.cur_time = self.start_time
+        self.note_count = 0
+        self.score_dur = 0
+        if reset_streams:
+            for s in self.streams.values():
+                if isinstance(s, Itemstream):
+                    s.index = 0
+                    s.heapdict = set()
+                    s.note_count = 0
+                    s.current_octave = 0
+                    s.is_chording = False
+                    s.chording_index = 0
+                    if s.streammode in (streammodes.heap, streammodes.random):
+                        s.index = s.rand.randrange(0, len(s.values))
+                        if s.streammode == streammodes.heap:
+                            s.heapdict.add(s.index)
+
     def generate_notes(self):
         self.note_count = 0
         self.cur_time = self.start_time
-        ret_lines = []
         self.notes = []
 
-        # todo - audit this, but looks like I intended note_limit to trump time_limit
-        while (self.note_limit > 0 and (self.note_count < self.note_limit)) or (self.time_limit > 0):
-        # we've got options - this condition says whichever one we get to first wins
-        # while (self.note_limit > 0 and (self.note_count < self.note_limit)) or ((self.time_limit > 0) and self.cur_time < self.time_limit):
-            note = Event(pfields=self.pfields, start_time=self.cur_time)
-            note_is_chording = False
-            rhythm = None
-
-
-            # for each key in the stream e.g. instr, dur, amp, freq, etc.
-            for key in self.streams.keys():
-                # rhythm is a special case. We deal with this case below.
-                if key is keys.rhythm:
-                    continue
-                # 2025.03.23 old comment: this could be a literal or ItemStream
-                # 2025.03.23 Streams are either ItemStreams, callables (lambdas, i.e. dur = .5*rhythm) or string or float literals
-                #   todo: validate that you aren't breaking this in Line initialization from a literal. It simplifies to
-                #       make everything either an itemstream or callable.
-
-                if not isinstance(self.streams[key], Itemstream) and not callable(self.streams[key]):
-                #     # first case: if it's not an itemstream or callable, assume it's a literal.
-                #     # 2025.03.25 This case isn't reachable given current ctor of ItemStream- should we do anything with this i.e. log?
-                #   2025.03.25 This case --is--reachable if you call Generator ctor with list of duples, like the old examples do.
-                    note.pfields[key] = self.streams[key]
-
-                elif isinstance(self.streams[key], Itemstream):
-                    # second  case: itemstream.  Get the next value, if it's a dictionary it's a special case to support mapping streams specifically.
-                    value = self.streams[key].get_next_value()
-
-                    # support mapping stream - more tests needed here.
-                    # i.e.  [{"rhy": "h", "indx": 5.54}, {"rhy": "h", "indx": 6.67}, {"rhy": "h", "indx": 8.0}]
-                    #   2025.03.25: I think this is old - you decided not to support mappings this way. They are special configs on the item stream.
-                    #           todo or: is this what the mapping lists look like after ctor of an item stream is called with
-                    #                   mapping_keys and mapping_lists set?
-                    #       this is a different flavor of mapping keys though. Here you can use simple mapping to say
-                    #           "every time it's an either: - make it loud" or " - map it to a given sound" etc. This shouldn't be called mapping
-                    #            todo write an example leveraging this.
-
-                    if isinstance(value, dict):
-                        for item in value.keys():
-                            if item == keys.rhythm:
-                                rhythm = utils.rhythm_to_duration(value[item], self.streams[key].tempo)
-                            elif item == "freq":
-                                result = utils.pc_to_freq(value[item], self.streams[key].current_octave)
-                                self.streams[item].current_octave = result["octave"]
-                                note.pfields[item] = result["value"]
-                            else:
-                                note.pfields[item] = value[item]
-                    else:
-                        # if not a dict, set the value.
-                        note.pfields[key] = value
-
-                    # in get_next_value, the stream may be processing a list. there should only be one list (one item to chord from) at a time,
-                    #   or else weird (and maybe fun) stuff will happen.
-                    if self.streams[key].is_chording:
-                        note_is_chording = True
-
-
-            # if we are not chording, move time forward by the rhythm value and save it.
-            if not note_is_chording:
-                if rhythm is not None:
-                    # in this case, rhythm was set by the mapping dictionary case above.
-                    self.cur_time = self.cur_time + rhythm
-                    note.rhythm = rhythm
-                elif note.rhythm is not None:
-                    # 2025.03.23: in this case..... note.rhythm has somehow been set. This may be a remnant of an example
-                    #   where the rhythm was set by a callable before this condition.
-                    self.cur_time = self.cur_time + note.rhythm
-                elif keys.rhythm in self.streams and self.streams[keys.rhythm] is not None:
-                    # 2024.01.31 added this clause instead of this being the default.
-                    #   test_generator was tripping here. A todo might be to be prescriptive in checking that
-                    #   if rhy isn't set in post_processes OR here, we should error out.
-                    # 2025.03.23: another old comment ^^
-                    #   todo: write some tests targeting the specific cases we want to support.
-                    rhythm = self.streams[keys.rhythm].get_next_value()
-                    self.cur_time = self.cur_time + rhythm
-                    note.rhythm = rhythm
-                else:
-                    # rhythm will likely be set by a post_process
-                    pass
-            else:
-                # 2025.03.12 Trying to set rhythm in chording scenarioes, so that post_processes or callables can refer to rhythm.
-                # ..adapted from Itemstream.get next value.
-                # if isinstance(self.streams[keys.rhythm].tempo, list):
-                #     note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index][self.streams[keys.rhythm].chording_index],
-                #                                    self.tempo[self.streams[keys.rhythm].note_count % len(self.tempo)])
-                # else:
-                if isinstance(self.streams[keys.rhythm].values[self.streams[keys.rhythm].index], list):
-                    print("in chording case, rhythm stream must be a flat list - current value is a list (Nested list case)")
-                    assert False
-
-                # here, we handle the case of tempo changing over time via list. Same logic as 'if isinstance(self.tempo, list):'
-                # case in Itemstream
-                tempo = self.streams[keys.rhythm].tempo
-
-                if isinstance(self.streams[keys.rhythm].tempo, list):
-                    tempo = self.streams[keys.rhythm].tempo[self.streams[keys.rhythm].note_count % len(self.streams[keys.rhythm].tempo)]
-
-                note.rhythm = utils.rhythm_to_duration(self.streams[keys.rhythm].values[self.streams[
-                    keys.rhythm].index], tempo)
-
-
-            # 2024.01.07 - not sure if this is an issue, but I'm changing this so callables can access rhythm
-            #   did I think we would want to do post-processing BEFORE curtime is set or something?
-
-            for key in self.streams.keys():
-                # this could be a literal or ItemStream
-                if key is not keys.rhythm and key in note.pfields:
-                    if callable(self.streams[key]):
-                        value = self.streams[key](note)
-                        note.pfields[key] = value
-
-            # the note is fully initialized. Run the list of post process in order.
-            for item in self.post_processes:
-                rhythm_not_set = (note.rhythm == None)
-                if callable(item):
-                    if len(funcsigs.signature(item).parameters) > 1:
-                        item(note, self.context)
-                    else:
-                        item(note)
-                if rhythm_not_set:
-                    assert note.rhythm is not None
-                    self.cur_time = self.cur_time + note.rhythm
-
-            # 2026.03.17 - There's a chicken and the egg thing here. I have a mix of usage where callables (lambdas mainly) are used
-            #   to set pfields which post_processes rely on, and in other cases (like some indexing pieces) it's
-            #   vice versa. I think this check for an unset key is safe, but let's keep an eye.
-            for key in self.streams.keys():
-                # this could be a literal or ItemStream
-                if key is not keys.rhythm and key in note.pfields:
-                    if (note.pfields[key] == None or note.pfields[key] == '') and callable(self.streams[key]):
-                        value = self.streams[key](note)
-                        note.pfields[key] = value
-
-            # 2025.03.31: moving this back to precede post_processing
-            #           legacy comments below:
-            # after setting primitives and ItemStream-driven values, evaluate lambdas / callables in streams.
-            # 2025.03.23 This is biased towards cases where we know we'd want to eval callables after post-processes.
-            # for key in self.streams.keys():
-            #     # this could be a literal or ItemStream
-            #     if callable(self.streams[key]):
-            #         value = self.streams[key](note)
-            #         note.pfields[key] = value
-
-            # Enforce time limit.
-            if self.cur_time > self.time_limit > 0:
+        while True:
+            note_str = self.generate_next_note()
+            if note_str is None:
                 break
-            else:
-                ret_lines.append(str(note) + "\n")
-                self.notes.append(str(note) + "\n")
-                self.note_count += 1
-                # update the duration of the score.
-                if (note.pfields[keys.start_time] + note.pfields[keys.duration]) > self.score_dur:
-                    self.score_dur = (note.pfields[keys.start_time] + note.pfields[keys.duration])
+            self.notes.append(note_str)
 
         for g in self.generators:
             # for any child generator, we make a few assumptions. One, the start time of the child is relative
@@ -539,9 +509,13 @@ class Line(NoteGenerator):
 
 
 
+_PendingSwap = namedtuple('PendingSwap', ['notes', 'target_beat'])
+
+
 class NoteGeneratorThread(threading.Thread):
 
-    def __init__(self, g, cs, cpt, sleep_interval=.0001):
+    def __init__(self, g, cs, cpt, sleep_interval=.0001, link_follower=None, streaming=False,
+                 lookahead_secs=2.0):
         self.g = g
         self.cs = cs
         self.cpt = cpt
@@ -549,6 +523,14 @@ class NoteGeneratorThread(threading.Thread):
         self.stop_event = threading.Event()
         self.thread = threading.Thread.__init__(self)
         self.lock = threading.Lock()
+        self.link_follower = link_follower
+        self._pending_swap = None
+        self._streaming = streaming
+        self._lookahead_secs = lookahead_secs
+        self._buffer = deque()   # (start_time_float, note_str) pairs, time-ordered
+        self._dispatch_ahead = 0.1  # dispatch notes up to 100ms before due time
+        self._probe_interval = 2.0  # seconds between sync probes
+        self._last_probe_time = 0.0
         return
 
     def run(self):
@@ -558,48 +540,178 @@ class NoteGeneratorThread(threading.Thread):
         sleep_interval = self.sleep_interval
         g.thread_started = True
 
-        # automatically generate notes if not already generated
-        # if g.notes is None or len(g.notes) < 1:
-        #     g.generate_notes()
-
         arbitrary_score_time = 0
         while not self.stop_event.is_set():
             score_time = cs.scoreTime()
-            # if arbitrary_score_time < g.time_limit:
-                # print("window: scoretime: " + str(arbitrary_score_time) + ", to " + str(arbitrary_score_time + sleep_interval))
-            # print("score time: " + str(score_time))
 
-            if(self.lock.locked() == False):
-                self.lock.acquire()
-                # for note in [note for note in g.notes if float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (arbitrary_score_time + sleep_interval)]:
-                for note in [note for note in g.notes if
-                             float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < (
-                                     score_time)]:
-                    # print(str(note))
-                    n = note.split()
-                    n[1] = '0.0'
-                    new_note = '\t'.join(n)
-                    cpt.inputMessage(new_note)
-                self.lock.release()
+            self._poll_link()
+            self._check_pending_swap()
+
+            if self._streaming:
+                self._fill_buffer(score_time + self._lookahead_secs)
+                while self._buffer and self._buffer[0][0] <= score_time + self._dispatch_ahead:
+                    start, note_str = self._buffer.popleft()
+                    n = note_str.split()
+                    n[1] = '{:.6f}'.format(max(0.0, start - score_time))
+                    cpt.inputMessage('\t'.join(n))
+                    beat_at_sched = self.link_follower.current_beat(start) if self.link_follower else None
+                    if beat_at_sched is not None:
+                        print("[dispatch] sched={:.4f} score={:.4f} beat={:.4f} beat%1={:.4f}".format(
+                            start, score_time, beat_at_sched, beat_at_sched % 1), flush=True)
+            else:
+                if not self.lock.locked():
+                    self.lock.acquire()
+                    for note in [note for note in g.notes if
+                                 float(note.split()[1]) >= arbitrary_score_time and float(note.split()[1]) < score_time]:
+                        n = note.split()
+                        n[1] = '0.0'
+                        cpt.inputMessage('\t'.join(n))
+                    self.lock.release()
+
+            # Periodic sync probe: compare our model against fresh carabiner data
+            if self.link_follower is not None and self._streaming:
+                if score_time - self._last_probe_time >= self._probe_interval:
+                    self._last_probe_time = score_time
+                    mono_before = time.monotonic()
+                    score_before = self._csound_time()
+                    model_b, probe_b, delta, drained_b, drained_a, rtt = self.link_follower.probe_sync(score_before)
+                    model_recv = self.link_follower.current_beat(score_before + rtt)
+                    model_mid = self.link_follower.current_beat(score_before + rtt / 2.0)
+                    delta_recv = model_recv - probe_b
+                    delta_mid = model_mid - probe_b
+                    bpm = self.link_follower.bpm
+                    print("[probe] score={:.4f} bpm={:.0f} rtt={:.3f}ms | delta_send={:+.3f}ms delta_mid={:+.3f}ms delta_recv={:+.3f}ms".format(
+                        score_time, bpm, rtt * 1000,
+                        delta * 60000.0 / bpm,
+                        delta_mid * 60000.0 / bpm,
+                        delta_recv * 60000.0 / bpm), flush=True)
 
             arbitrary_score_time = score_time
             time.sleep(sleep_interval)
 
         self.stop_event.clear()
 
-    def gen(self):
-        print(str(len(self.g.notes)) + " pre-copy.")
-        temp = self.g.deepcopy_tree()
-        temp.generate_notes()
-        print(str(len(temp.notes)) + " generated. Copying...")
-        self.lock.acquire()
-        self.g.notes = temp.notes
-        self.lock.release()
-        print(str(len(self.g.notes)) + " post-copy.")
-        # print(self.g.generate_score_string())
+    def gen(self, quantize=None):
+        if self._streaming:
+            if quantize is None or self.link_follower is None:
+                self.g.reset_cursor()
+                self._flush_stale_buffer()
+                if self.link_follower is not None:
+                    self._beat_snap_cursor()
+                else:
+                    self._fast_forward_to(self._csound_time())
+                print("Streaming: cursor reset, buffer flushed.")
+            else:
+                q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
+                target = self.link_follower.next_boundary(self._csound_time(), quantum=q)
+                self._pending_swap = _PendingSwap(notes=None, target_beat=target)
+                print("Streaming reset queued at beat " + str(target))
+        else:
+            print(str(len(self.g.notes)) + " pre-copy.")
+            temp = self.g.deepcopy_tree()
+            temp.generate_notes()
+            print(str(len(temp.notes)) + " generated. Copying...")
+            if quantize is None or self.link_follower is None:
+                self.lock.acquire()
+                self.g.notes = temp.notes
+                self.lock.release()
+                print(str(len(self.g.notes)) + " post-copy.")
+            else:
+                q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
+                target = self.link_follower.next_boundary(self._csound_time(), quantum=q)
+                self._pending_swap = _PendingSwap(notes=temp.notes, target_beat=target)
+                print("Swap queued at beat " + str(target))
+
+    def _csound_time(self):
+        return self.cs.scoreTime()
+
+    def _fill_buffer(self, target_time):
+        """Generate notes into the lookahead buffer up to target_time."""
+        while self.g.cur_time < target_time:
+            note_str = self.g.generate_next_note()
+            if note_str is None:
+                break
+            start = float(note_str.split()[1])
+            self._buffer.append((start, note_str))
+
+    def _flush_stale_buffer(self):
+        """Discard all buffered notes past the current score time."""
+        score_time = self._csound_time()
+        self._buffer = deque((t, n) for t, n in self._buffer if t <= score_time)
+
+    def _fast_forward_to(self, target_time):
+        """Generate and discard notes until g.cur_time reaches target_time.
+
+        Used after reset_cursor() so stream state advances to the correct
+        musical position without dispatching old notes as a burst.
+        """
+        while self.g.cur_time < target_time:
+            note_str = self.g.generate_next_note()
+            if note_str is None:
+                break
+
+    def _poll_link(self):
+        """Check for a BPM change from the Link session and update tempos."""
+        if self.link_follower is None or not self.link_follower.connected:
+            return
+        new_bpm = self.link_follower.poll()
+        if new_bpm is not None:
+            # Re-anchor with an active probe rather than trusting the
+            # pushed status line (which was in-flight for an unknown
+            # amount of time, introducing a stale-read offset).
+            self.link_follower.establish_sync_via_probe(self._csound_time)
+            self._update_tempos(new_bpm)
+            if self._streaming:
+                self._flush_stale_buffer()
+                score_time = self._csound_time()
+                current_beat = self.link_follower.current_beat(score_time)
+                next_beat = math.floor(current_beat) + 1
+                self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
+                print("[poll_link] new_bpm={} score_time={} last_beat={} next_beat={} g.cur_time={}".format(
+                    new_bpm, score_time, self.link_follower._last_beat, next_beat, self.g.cur_time), flush=True)
+
+    def _beat_snap_cursor(self):
+        """Set g.cur_time to the Csound time of the next Link beat boundary.
+
+        Replaces _fast_forward_to() in streaming mode: instead of advancing
+        stream state to score_time (which lands mid-beat), we position the
+        cursor exactly on the next integer beat so the first generated note
+        is phase-locked to the Link grid.
+        """
+        score_time = self._csound_time()
+        current_beat = self.link_follower.current_beat(score_time)
+        next_beat = math.floor(current_beat) + 1
+        self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
+
+    def _check_pending_swap(self):
+        """Fire a queued quantized swap (batch) or cursor reset (streaming)."""
+        if self._pending_swap is None or self.link_follower is None:
+            return
+        if self.link_follower.current_beat(self._csound_time()) >= self._pending_swap.target_beat:
+            if self._streaming:
+                self.g.reset_cursor()
+                self._flush_stale_buffer()
+                self._beat_snap_cursor()
+                self._pending_swap = None
+            else:
+                with self.lock:
+                    self.g.notes = self._pending_swap.notes
+                    self._pending_swap = None
+
+    def _update_tempos(self, bpm):
+        """Set tempo on all rhythm-notetype Itemstreams in generator and children."""
+        self._set_generator_tempos(self.g, bpm)
+
+    def _set_generator_tempos(self, generator, bpm):
+        for stream in generator.streams.values():
+            if isinstance(stream, Itemstream) and stream.notetype == notetypes.rhythm:
+                stream.tempo = bpm
+        for child in generator.generators:
+            self._set_generator_tempos(child, bpm)
 
 
-def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
+def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+            link_follower=None, streaming=False, lookahead_secs=2.0):
     cs = cs_utils.init_csound_with_orc(['-o'+device_string, '--devices', '-+rtaudio=CoreAudio'],
                                        orc_file,
                                        True,
@@ -609,10 +721,29 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
     cpt = ctcsound.CsoundPerformanceThread(cs.csound())
     cpt.play()
 
-    t = NoteGeneratorThread(g, cs, cpt)
+    if link_follower is not None:
+        link_follower.establish_sync_via_probe(lambda: cs.scoreTime())
+        if streaming:
+            # Snap generator cursor to the next beat boundary so the first note
+            # lands on a beat rather than wherever Csound happened to start.
+            score_time = cs.scoreTime()
+            current_beat = link_follower.current_beat(score_time)
+            next_beat = math.floor(current_beat) + 1
+            g.cur_time = link_follower.csound_time_for_beat(next_beat)
+
+    t = NoteGeneratorThread(g, cs, cpt, link_follower=link_follower,
+                            streaming=streaming, lookahead_secs=lookahead_secs)
+    if streaming and link_follower is not None:
+        # Sync generator tempo to the current Link BPM before the thread starts.
+        # _update_tempos() only fires on BPM *changes* in the run loop, so if the
+        # session has been at a steady tempo since connect() the generator would
+        # otherwise keep its constructor tempo indefinitely.
+        t._update_tempos(link_follower.bpm)
     t.daemon = True
     t.start()
     return t
 
-def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac'):
-    return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string)
+def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+       link_follower=None, streaming=False, lookahead_secs=2.0):
+    return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string,
+                   link_follower=link_follower, streaming=streaming, lookahead_secs=lookahead_secs)

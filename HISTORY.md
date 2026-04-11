@@ -4,6 +4,58 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-11 — Link sync accuracy: active-probe anchor + latency offset
+
+### Context
+With streaming generation and Link following already implemented on `feature/link-follower`, the example sounded consistently late by an audible amount across tempo changes. Instrumented the sync path to find out why, and added a configurable compensation knob.
+
+### Diagnosis
+Added probe instrumentation (`LinkFollower.probe_sync()`) that sends a fresh `status\n` to carabiner and compares carabiner's reported beat against the sync model's beat. Ran the example at multiple tempos (60/90/120/240 bpm) and measured:
+
+- `delta_send` — model at pre-send time vs probe
+- `delta_mid`  — model at send + rtt/2 vs probe
+- `delta_recv` — model at post-recv time vs probe
+
+Key findings:
+
+1. **Carabiner RTT is ~20–25 ms on localhost.** Not the sub-ms we'd expect from a local TCP roundtrip — carabiner apparently services status requests on its own ~50 Hz internal loop.
+2. **Carabiner does not push unsolicited updates** (beyond tempo-change notifications). `drained_before` / `drained_after` were always 0.
+3. **Initial anchor and each tempo-change re-anchor introduced their own systematic offset**, because `establish_sync()` projected `_last_beat` forward from `_last_beat_wall_time` (the parse timestamp, not the send timestamp). The delay between carabiner sending and us reading the status line varied per call.
+4. **Carabiner samples its reported beat at the midpoint of the RTT window.** Measuring `delta_mid` at steady state gave values consistently within ±2 ms of zero across 60/120/240 bpm — confirming the sync model itself is accurate.
+
+The residual audible lateness was *not* a sync-model error. It's audio output latency: Csound software buffer + hardware buffer + driver + DAC. With `-b 1024 -B 4096` at 44100 Hz plus CoreAudio + Mac speaker output, that's ~150 ms.
+
+### Changes
+
+**`LinkFollower.establish_sync_via_probe(csound_time_fn)`**
+New anchor method. Sends fresh `status\n`, reads the reply, drains any races (prefers latest), and anchors `(csound_time_at_recv, _last_beat)` with no projection correction. Replaces the passive `establish_sync()` call in `kickoff` and `_poll_link`. The old `establish_sync()` is kept (still used by tests, still correct mathematically) but marked as less accurate in its docstring.
+
+**`LinkFollower.latency_offset_secs` (new field)**
+Tunable fixed wall-time offset applied in `current_beat()` and `csound_time_for_beat()`. Positive values shift notes earlier in wall time, compensating for audio output latency. Live-adjustable mid-performance (e.g. `lf.latency_offset_secs = 0.15`). The example now defaults to `0.15`, which is the measured sweet spot for Csound default buffers + macOS built-in speakers.
+
+**`LinkFollower._drain_nonblocking()` (new helper)**
+Extracted drain-and-discard logic used by both `probe_sync()` and `establish_sync_via_probe()`.
+
+**`LinkFollower.probe_sync()` (revised)**
+Now returns `(model_beat, probe_beat, delta, drained_before, drained_after, rtt_secs)`. Drains queued pushes before sending and prefers the latest post-recv line, so the returned beat is guaranteed to reflect a reply to the current request, not a stale push.
+
+**`NoteGeneratorThread._poll_link` and `kickoff`**
+Both now call `establish_sync_via_probe()` at anchor time. The startup drain dance in `kickoff` is gone — subsumed by the new method.
+
+**`doc/LinkFollower-GettingStarted.md` (moved from `examples/`)**
+Moved the getting-started guide out of `examples/` into `doc/` where narrative documentation lives. Updated content to describe streaming mode, the active-probe anchor, and the new latency offset field. Added a *Notes on calculating latency* section with the formula `(b + B) / sample_rate + driver_latency`, a worked example for the defaults, and a quick-reference table of buffer/sample-rate combinations. Decision: keep latency tuning fully manual rather than auto-computing from Csound options — the driver term is the dominant unknown anyway, so a documented formula is more useful than partial automation.
+
+### Decision rationale
+
+The original diagnostic hypothesis was "add a midpoint correction in `establish_sync_via_probe` to account for carabiner's sample timing." That was tried and made things *worse* — each anchor's RTT was different, so it introduced its own per-anchor bias that persisted until the next re-anchor. Dropping the correction entirely and anchoring at raw `_last_beat` from the fresh probe gave `delta_mid` within ±2 ms across all tempo regimes (except one 240→120 transition, which showed a ~10 ms outlier with no clear cause — left unfixed pending a reproducible case).
+
+A fixed per-anchor bias is acceptable because probe measurements have the same bias and cancel out. The audible offset that remained was audio output latency, which `latency_offset_secs` solves at the compensation layer rather than by fighting the sync model.
+
+### Test Count
+Still 136 tests, all passing. No new tests added this session — the changes are observable behavior fixes, and the sync-model math was already well-covered. A dedicated test for `latency_offset_secs` semantics (round-trip identity when offset=0, expected shift when nonzero) should be added.
+
+---
+
 ## 2026-03-14 — Language/Architecture Session (thuja-language)
 
 ### Context
@@ -126,3 +178,126 @@ Full pass over `tests/todos.md`: all newly covered items moved to "Already Cover
 ### Test Count
 
 53 tests at start of session. End of session: 86 tests (across master after all PRs merged).
+
+---
+
+## 2026-04-08 — LinkFollower Implementation (feature/link-follower)
+
+### Context
+
+First implementation pass on the Ableton Link sync feature described in `LinkFollower-Plan.md`. Goal: tempo following (Phase 1) and quantized note regeneration (Phase 2) wired into `NoteGeneratorThread`, with all existing behavior unaffected.
+
+### Design Decisions
+
+**`target_beat` not `target_csound_time`**
+Quantized swaps store the Link beat number as the target, not the equivalent Csound time. Csound time for a given beat changes when tempo changes; the Link beat number does not. `_check_pending_swap()` recomputes `current_beat()` live each tick using the current sync point, so the check stays accurate across tempo changes without updating the target.
+
+**`establish_sync()` called on every tempo change**
+The sync point `(csound_time, link_beat, bpm)` must be re-recorded any time BPM changes. `_poll_link()` calls `establish_sync()` immediately after detecting a change, before `_update_tempos()`, so that all subsequent `current_beat()` calls use the new BPM.
+
+**`next_boundary()` uses strictly-next semantics**
+`floor(cb / q) + 1` rather than `ceil(cb / q)`. If `gen(quantize=4)` is called exactly on a bar boundary, the swap waits for the following bar, not the current one. This avoids an immediate swap that defeats the purpose of quantization.
+
+**Mock socket via `_socket_factory` injection**
+`LinkFollower.__init__` accepts an optional `_socket_factory` callable. Tests pass a factory that returns a `MagicMock` socket. This keeps the class clean (no test-only hooks) while making all 12 tests runnable without a live carabiner process.
+
+**All `NoteGeneratorThread` changes are additive**
+`link_follower=None` default; all new logic gated on non-None. `_poll_link()` and `_check_pending_swap()` are no-ops when `link_follower` is None. Zero impact on existing call sites.
+
+### New Files
+
+- **`thuja/link_follower.py`** — `LinkFollower` class; standalone, no thuja dependency
+- **`examples/link_follower_ex.py`** — end-to-end example: connects to carabiner, starts a generator thread, demonstrates quantized swap
+- **`examples/LinkFollower-GettingStarted.md`** — setup guide: carabiner install on macOS, verifying Link, running the example
+
+### Modified Files
+
+- **`thuja/notegenerator.py`** — `NoteGeneratorThread`: added `link_follower` param, `_pending_swap`, `gen(quantize=...)`, `_poll_link()`, `_check_pending_swap()`, `_update_tempos()`, `_set_generator_tempos()`; `kickoff()` and `ko()` accept `link_follower=None` and call `establish_sync()` before starting the thread
+- **`CLAUDE.md`** — updated `LinkFollowerProposal.md` reference to `LinkFollower-Plan.md`; updated file count to 8
+- **`tests/todos.md`** — LinkFollower coverage added to "Already Covered"; NoteGeneratorThread note updated
+- **`HISTORY.md`** — this entry
+
+### Test Count
+
+86 tests at start of session. End of session: 113 tests.
+
+---
+
+## 2026-04-08 — Streaming Note Generation (feature/link-follower)
+
+### Context
+
+Batch `generate_notes()` pre-bakes all note start times at a fixed tempo. When Ableton Link changes the BPM, every pre-baked start time is wrong — the only remedy is a full regeneration. This defeats the purpose of real-time tempo following. Streaming generation produces one note at a time on demand, so tempo changes take effect within one lookahead window.
+
+### Design Decisions
+
+**`generate_next_note()` extracts the loop body**
+The inner loop of `generate_notes()` is already stateful and self-contained: Itemstreams advance their indices, `cur_time` accumulates, octave state persists. Nothing in it requires the full batch to exist first. Extracting it as `generate_next_note()` required minimal refactoring. `generate_notes()` becomes a thin wrapper that calls it in a loop; all existing behavior is preserved.
+
+**`reset_cursor(reset_streams=False)` rewinds timing only**
+Resets `cur_time` to `start_time` and `note_count` to 0 without touching stream state. Used by `gen()` and `_check_pending_swap()` in streaming mode to restart note generation from the current score time. `reset_streams=True` also resets Itemstream indices, heap state, and octave state (full restart).
+
+**Lookahead buffer as a `deque` of `(start_time, note_str)` tuples**
+`NoteGeneratorThread` maintains a deque covering the next `lookahead_secs` (default 2.0s). `_fill_buffer(target)` calls `generate_next_note()` until the buffer covers `target`. On tempo change, `_flush_stale_buffer()` removes notes with `start_time > current_score_time`; the buffer refills on the next tick at the new tempo.
+
+**`_fast_forward_to(target)` prevents burst dispatch after cursor reset**
+After `reset_cursor()`, `cur_time` is at `start_time`. Without fast-forwarding, the first `_fill_buffer()` call would generate notes starting at 0 — all of which would be instantly dispatched as overdue. `_fast_forward_to(score_time)` generates and discards notes up to the current score time before filling the buffer.
+
+**`_pending_swap.notes = None` signals a streaming reset**
+The existing `_PendingSwap` namedtuple is reused for quantized gen() in streaming mode. `notes=None` distinguishes the streaming path (pending cursor reset) from the batch path (pending notes-list swap). No new namedtuple needed.
+
+**Phase 1: children fall back to batch**
+Child generators are processed in a separate pass in `generate_notes()`. In streaming mode, only generators with no children use the new path. Generators with children fall back to batch automatically. Phase 2 (per-child cursors with buffer merge-sort) is deferred.
+
+### Modified Files
+
+- **`thuja/notegenerator.py`** — `NoteGenerator`: `generate_next_note()` extracted from loop body; `reset_cursor(reset_streams=False)` added; `generate_notes()` refactored as thin wrapper. `NoteGeneratorThread`: `streaming=False`, `lookahead_secs=2.0`, `_buffer=deque()` added to `__init__`; `_fill_buffer()`, `_flush_stale_buffer()`, `_fast_forward_to()` added; `run()` has streaming branch; `gen()`, `_poll_link()`, `_check_pending_swap()` updated for streaming path; `kickoff()` and `ko()` accept `streaming=` and `lookahead_secs=` params
+- **`examples/link_follower_ex.py`** — updated to use `streaming=True`, `time_limit=7200` (no pre-bake), comprehensive diagnostic logging
+- **`StreamingGeneration-Plan.md`** — full architecture plan saved before implementation
+- **`tests/test_streaming.py`** — new test suite (see below)
+
+### Test Coverage Added
+
+21 new tests in `tests/test_streaming.py`:
+
+- **`TestGenerateNextNote`**: equivalence with batch `generate_notes()`; exhaustion returns None; `cur_time` advances correctly; `time_limit` respected; `score_dur` matches batch
+- **`TestResetCursor`**: rewinds `cur_time`; resets `note_count`; preserves stream state by default; `reset_streams=True` resets indices; first note after reset matches original
+- **`TestBufferHelpers`**: `_fill_buffer` generates notes up to target; `_fill_buffer` stops at target; `_flush_stale_buffer` removes future notes; `_fast_forward_to` advances `cur_time`; `_fast_forward_to` adds nothing to buffer
+- **`TestStreamingTempoChange`**: `_poll_link` flushes buffer on tempo change; `_poll_link` updates rhythm stream tempo; next notes after tempo change use new BPM
+- **`TestStreamingGen`**: immediate `gen()` resets cursor and fast-forwards; `gen(quantize=4)` sets `_pending_swap` with correct target beat and `notes=None`; `_check_pending_swap` fires and clears at target beat
+
+### Test Count
+
+113 tests at start of session. End of session: 136 tests.
+
+---
+
+## 2026-04-09 — Branch Status Summary (feature/link-follower)
+
+### Streaming Generation — Complete
+
+Everything in `StreamingGeneration-Plan.md` is implemented and committed:
+
+- `generate_next_note()` — single-note on-demand extraction from loop body
+- `reset_cursor(reset_streams=False)` — rewinds timing without touching stream state
+- `generate_notes()` — refactored as thin wrapper; all existing behavior intact
+- `NoteGeneratorThread` — lookahead deque buffer (`_fill_buffer`, `_flush_stale_buffer`, `_fast_forward_to`); streaming `run()` dispatch; streaming paths in `gen()`, `_poll_link()`, `_check_pending_swap()`
+- `kickoff()`/`ko()` — accept `streaming=True` and `lookahead_secs=` params
+- `link_follower_ex.py` — updated to use `streaming=True`, `time_limit=7200`, no pre-bake
+- 21 new tests in `tests/test_streaming.py`; all 136 tests pass
+
+**Phase 2 deferred:** Child generators fall back to batch in streaming mode. Noted in `StreamingGeneration-Plan.md`.
+
+### LinkFollower — Complete
+
+Everything in `LinkFollower-Plan.md` Phase 1 + Phase 2 is implemented and committed:
+
+- `LinkFollower` class — carabiner connection, BPM/beat parsing (both carabiner 1.x and 1.2+ formats), `establish_sync()`, `current_beat()`, `next_boundary()` (strictly-next semantics), `poll()`
+- `NoteGeneratorThread` — `_poll_link()` updates tempos on BPM change, `gen(quantize=N)` queues swap at next beat boundary, `_check_pending_swap()` fires at target beat
+- 12 tests in `tests/test_link_follower.py` using mock socket injection
+
+### What Remains Before PR
+
+1. Live end-to-end test: run `link_follower_ex.py` with carabiner + Ableton to confirm streaming tempo following works in practice
+2. Minor: update `CLAUDE.md` file count (8 → 9 after adding `link_follower.py`)
+3. Open PR: `feature/link-follower` → `master`

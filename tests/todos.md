@@ -4,7 +4,7 @@ This document tracks outstanding test coverage gaps. Items are removed as tests 
 
 **NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-Last updated: 2026-04-07
+Last updated: 2026-04-11 (link sync accuracy)
 
 ---
 
@@ -101,11 +101,46 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 **5. `clear_notes()`**
 0 files in wild. Low value.
 
+**feature/link-follower (streaming generation):**
+- `generate_next_note()` — equivalence with batch `generate_notes()`; exhaustion returns None; `cur_time` advances; `time_limit` respected; `score_dur` matches batch
+- `reset_cursor()` — rewinds `cur_time` and `note_count`; preserves stream state by default; `reset_streams=True` resets indices and octave state
+- `NoteGeneratorThread._fill_buffer()` — generates notes up to target time; stops at target
+- `NoteGeneratorThread._flush_stale_buffer()` — removes notes with start_time > score_time
+- `NoteGeneratorThread._fast_forward_to()` — advances cur_time without filling buffer
+- Tempo change via `_poll_link()` — flushes buffer; updates rhythm stream tempo; new notes use new BPM
+- `gen()` immediate in streaming mode — resets cursor, fast-forwards to score_time
+- `gen(quantize=N)` in streaming mode — sets `_pending_swap` with `notes=None` and correct `target_beat`
+- `_check_pending_swap()` in streaming mode — fires and clears at `target_beat`
+
+---
+
+**feature/link-follower (LinkFollower + NoteGeneratorThread integration):**
+- `LinkFollower.connect()` — parses BPM and beat from carabiner initial status
+- `LinkFollower.establish_sync()` — stores (csound_time, link_beat, bpm) sync point
+- `LinkFollower.current_beat()` — correct math; survives tempo change + re-sync
+- `LinkFollower.csound_time_for_beat()` — inverse of current_beat; round-trip verified
+- `LinkFollower.next_boundary()` — strictly-next quantum boundary; beat/bar/exactly-on cases
+- `LinkFollower.poll()` — returns None when no change; returns new BPM on change
+- `NoteGeneratorThread._update_tempos()` — sets tempo on all rhythm-notetype streams
+- `NoteGeneratorThread._poll_link()` — calls _update_tempos when poll returns new BPM
+- `NoteGeneratorThread.gen(quantize=...)` — sets _pending_swap with correct target_beat
+- `NoteGeneratorThread._check_pending_swap()` — fires swap at target_beat; doesn't fire early
+- `target_beat` survives tempo change (stored as Link beat number, not Csound time)
+
+---
+
+## Outstanding Gaps
+
+**feature/link-follower (sync accuracy session 2026-04-11):**
+- `LinkFollower.establish_sync_via_probe()` — sends fresh status, anchors to reply; race-hardens against pushed pushes by preferring latest post-recv line
+- `LinkFollower.probe_sync()` — round-trip measurement + drain counts; reports (model, probe, delta, drained_before, drained_after, rtt)
+- `LinkFollower.latency_offset_secs` — round-trip identity when offset=0; `current_beat(t)` shifted by +offset × bpm/60 beats; `csound_time_for_beat(b)` shifted by -offset seconds; live-mutable mid-run
+
 ---
 
 ## Not Worth Testing Now
 
-- **NoteGeneratorThread** — requires live Csound; unit-test coverage impractical without mocking ctcsound
+- **NoteGeneratorThread run loop** — requires live Csound; _poll_link/_check_pending_swap are tested directly
 - **Tempo as callable** — 0 files in wild
 - **UDP send methods** — 0 files in wild
 - **csound_utils** — integration-only; requires Csound installed
