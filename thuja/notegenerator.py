@@ -1,3 +1,4 @@
+import math
 import random
 import sys
 from operator import truediv
@@ -631,7 +632,10 @@ class NoteGeneratorThread(threading.Thread):
             self._update_tempos(new_bpm)
             if self._streaming:
                 self._flush_stale_buffer()
-                self.g.cur_time = self._csound_time()
+                score_time = self._csound_time()
+                current_beat = self.link_follower.current_beat(score_time)
+                next_beat = math.floor(current_beat) + 1
+                self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
 
     def _check_pending_swap(self):
         """Fire a queued quantized swap (batch) or cursor reset (streaming)."""

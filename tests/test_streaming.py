@@ -256,19 +256,21 @@ class TestStreamingTempoChange(unittest.TestCase):
         lf = MagicMock()
         lf.connected = True
         lf.poll.return_value = 60.0   # 1 beat/sec
+        lf.current_beat.return_value = 2.0   # exactly on beat 2
+        lf.csound_time_for_beat.return_value = 3.0  # next beat (3) is at score_time 3.0
         cs_mock = MagicMock()
         cs_mock.scoreTime.return_value = 2.0
         cpt_mock = MagicMock()
         t = NoteGeneratorThread(g, cs_mock, cpt_mock, link_follower=lf, streaming=True)
-        t._poll_link()   # updates tempo, sets g.cur_time=2.0
-        # Next note generated should be at cur_time=2.0 and advance by 1.0s (60bpm quarter)
+        t._poll_link()   # updates tempo, snaps g.cur_time to next beat boundary (3.0)
+        self.assertAlmostEqual(g.cur_time, 3.0, places=5)
+        # Next note should start at the snapped beat boundary
         note_str = g.generate_next_note()
         self.assertIsNotNone(note_str)
-        parts = note_str.split()
-        start = float(parts[1])
-        self.assertAlmostEqual(start, 2.0, places=5)
+        start = float(note_str.split()[1])
+        self.assertAlmostEqual(start, 3.0, places=5)
         # cur_time should have advanced by 1.0 (quarter at 60bpm)
-        self.assertAlmostEqual(g.cur_time, 3.0, places=5)
+        self.assertAlmostEqual(g.cur_time, 4.0, places=5)
 
 
 # ---------------------------------------------------------------------------
