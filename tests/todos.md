@@ -4,7 +4,7 @@ This document tracks outstanding test coverage gaps. Items are removed as tests 
 
 **NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-Last updated: 2026-04-08 (streaming)
+Last updated: 2026-04-11 (link sync accuracy)
 
 ---
 
@@ -126,6 +126,15 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 - `NoteGeneratorThread.gen(quantize=...)` — sets _pending_swap with correct target_beat
 - `NoteGeneratorThread._check_pending_swap()` — fires swap at target_beat; doesn't fire early
 - `target_beat` survives tempo change (stored as Link beat number, not Csound time)
+
+---
+
+## Outstanding Gaps
+
+**feature/link-follower (sync accuracy session 2026-04-11):**
+- `LinkFollower.establish_sync_via_probe()` — sends fresh status, anchors to reply; race-hardens against pushed pushes by preferring latest post-recv line
+- `LinkFollower.probe_sync()` — round-trip measurement + drain counts; reports (model, probe, delta, drained_before, drained_after, rtt)
+- `LinkFollower.latency_offset_secs` — round-trip identity when offset=0; `current_beat(t)` shifted by +offset × bpm/60 beats; `csound_time_for_beat(b)` shifted by -offset seconds; live-mutable mid-run
 
 ---
 

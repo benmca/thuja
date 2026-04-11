@@ -528,6 +528,9 @@ class NoteGeneratorThread(threading.Thread):
         self._streaming = streaming
         self._lookahead_secs = lookahead_secs
         self._buffer = deque()   # (start_time_float, note_str) pairs, time-ordered
+        self._dispatch_ahead = 0.1  # dispatch notes up to 100ms before due time
+        self._probe_interval = 2.0  # seconds between sync probes
+        self._last_probe_time = 0.0
         return
 
     def run(self):
@@ -546,15 +549,15 @@ class NoteGeneratorThread(threading.Thread):
 
             if self._streaming:
                 self._fill_buffer(score_time + self._lookahead_secs)
-                while self._buffer and self._buffer[0][0] < score_time:
+                while self._buffer and self._buffer[0][0] <= score_time + self._dispatch_ahead:
                     start, note_str = self._buffer.popleft()
                     n = note_str.split()
-                    n[1] = '0.0'
+                    n[1] = '{:.6f}'.format(max(0.0, start - score_time))
                     cpt.inputMessage('\t'.join(n))
-                    beat_now = self.link_follower.current_beat(score_time) if self.link_follower else None
-                    if beat_now is not None:
+                    beat_at_sched = self.link_follower.current_beat(start) if self.link_follower else None
+                    if beat_at_sched is not None:
                         print("[dispatch] sched={:.4f} score={:.4f} beat={:.4f} beat%1={:.4f}".format(
-                            start, score_time, beat_now, beat_now % 1), flush=True)
+                            start, score_time, beat_at_sched, beat_at_sched % 1), flush=True)
             else:
                 if not self.lock.locked():
                     self.lock.acquire()
@@ -564,6 +567,24 @@ class NoteGeneratorThread(threading.Thread):
                         n[1] = '0.0'
                         cpt.inputMessage('\t'.join(n))
                     self.lock.release()
+
+            # Periodic sync probe: compare our model against fresh carabiner data
+            if self.link_follower is not None and self._streaming:
+                if score_time - self._last_probe_time >= self._probe_interval:
+                    self._last_probe_time = score_time
+                    mono_before = time.monotonic()
+                    score_before = self._csound_time()
+                    model_b, probe_b, delta, drained_b, drained_a, rtt = self.link_follower.probe_sync(score_before)
+                    model_recv = self.link_follower.current_beat(score_before + rtt)
+                    model_mid = self.link_follower.current_beat(score_before + rtt / 2.0)
+                    delta_recv = model_recv - probe_b
+                    delta_mid = model_mid - probe_b
+                    bpm = self.link_follower.bpm
+                    print("[probe] score={:.4f} bpm={:.0f} rtt={:.3f}ms | delta_send={:+.3f}ms delta_mid={:+.3f}ms delta_recv={:+.3f}ms".format(
+                        score_time, bpm, rtt * 1000,
+                        delta * 60000.0 / bpm,
+                        delta_mid * 60000.0 / bpm,
+                        delta_recv * 60000.0 / bpm), flush=True)
 
             arbitrary_score_time = score_time
             time.sleep(sleep_interval)
@@ -635,7 +656,10 @@ class NoteGeneratorThread(threading.Thread):
             return
         new_bpm = self.link_follower.poll()
         if new_bpm is not None:
-            self.link_follower.establish_sync(self._csound_time())
+            # Re-anchor with an active probe rather than trusting the
+            # pushed status line (which was in-flight for an unknown
+            # amount of time, introducing a stale-read offset).
+            self.link_follower.establish_sync_via_probe(self._csound_time)
             self._update_tempos(new_bpm)
             if self._streaming:
                 self._flush_stale_buffer()
@@ -698,7 +722,7 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
     cpt.play()
 
     if link_follower is not None:
-        link_follower.establish_sync(cs.scoreTime())
+        link_follower.establish_sync_via_probe(lambda: cs.scoreTime())
         if streaming:
             # Snap generator cursor to the next beat boundary so the first note
             # lands on a beat rather than wherever Csound happened to start.

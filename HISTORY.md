@@ -4,6 +4,58 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-11 — Link sync accuracy: active-probe anchor + latency offset
+
+### Context
+With streaming generation and Link following already implemented on `feature/link-follower`, the example sounded consistently late by an audible amount across tempo changes. Instrumented the sync path to find out why, and added a configurable compensation knob.
+
+### Diagnosis
+Added probe instrumentation (`LinkFollower.probe_sync()`) that sends a fresh `status\n` to carabiner and compares carabiner's reported beat against the sync model's beat. Ran the example at multiple tempos (60/90/120/240 bpm) and measured:
+
+- `delta_send` — model at pre-send time vs probe
+- `delta_mid`  — model at send + rtt/2 vs probe
+- `delta_recv` — model at post-recv time vs probe
+
+Key findings:
+
+1. **Carabiner RTT is ~20–25 ms on localhost.** Not the sub-ms we'd expect from a local TCP roundtrip — carabiner apparently services status requests on its own ~50 Hz internal loop.
+2. **Carabiner does not push unsolicited updates** (beyond tempo-change notifications). `drained_before` / `drained_after` were always 0.
+3. **Initial anchor and each tempo-change re-anchor introduced their own systematic offset**, because `establish_sync()` projected `_last_beat` forward from `_last_beat_wall_time` (the parse timestamp, not the send timestamp). The delay between carabiner sending and us reading the status line varied per call.
+4. **Carabiner samples its reported beat at the midpoint of the RTT window.** Measuring `delta_mid` at steady state gave values consistently within ±2 ms of zero across 60/120/240 bpm — confirming the sync model itself is accurate.
+
+The residual audible lateness was *not* a sync-model error. It's audio output latency: Csound software buffer + hardware buffer + driver + DAC. With `-b 1024 -B 4096` at 44100 Hz plus CoreAudio + Mac speaker output, that's ~150 ms.
+
+### Changes
+
+**`LinkFollower.establish_sync_via_probe(csound_time_fn)`**
+New anchor method. Sends fresh `status\n`, reads the reply, drains any races (prefers latest), and anchors `(csound_time_at_recv, _last_beat)` with no projection correction. Replaces the passive `establish_sync()` call in `kickoff` and `_poll_link`. The old `establish_sync()` is kept (still used by tests, still correct mathematically) but marked as less accurate in its docstring.
+
+**`LinkFollower.latency_offset_secs` (new field)**
+Tunable fixed wall-time offset applied in `current_beat()` and `csound_time_for_beat()`. Positive values shift notes earlier in wall time, compensating for audio output latency. Live-adjustable mid-performance (e.g. `lf.latency_offset_secs = 0.15`). The example now defaults to `0.15`, which is the measured sweet spot for Csound default buffers + macOS built-in speakers.
+
+**`LinkFollower._drain_nonblocking()` (new helper)**
+Extracted drain-and-discard logic used by both `probe_sync()` and `establish_sync_via_probe()`.
+
+**`LinkFollower.probe_sync()` (revised)**
+Now returns `(model_beat, probe_beat, delta, drained_before, drained_after, rtt_secs)`. Drains queued pushes before sending and prefers the latest post-recv line, so the returned beat is guaranteed to reflect a reply to the current request, not a stale push.
+
+**`NoteGeneratorThread._poll_link` and `kickoff`**
+Both now call `establish_sync_via_probe()` at anchor time. The startup drain dance in `kickoff` is gone — subsumed by the new method.
+
+**`doc/LinkFollower-GettingStarted.md` (moved from `examples/`)**
+Moved the getting-started guide out of `examples/` into `doc/` where narrative documentation lives. Updated content to describe streaming mode, the active-probe anchor, and the new latency offset field. Added a *Notes on calculating latency* section with the formula `(b + B) / sample_rate + driver_latency`, a worked example for the defaults, and a quick-reference table of buffer/sample-rate combinations. Decision: keep latency tuning fully manual rather than auto-computing from Csound options — the driver term is the dominant unknown anyway, so a documented formula is more useful than partial automation.
+
+### Decision rationale
+
+The original diagnostic hypothesis was "add a midpoint correction in `establish_sync_via_probe` to account for carabiner's sample timing." That was tried and made things *worse* — each anchor's RTT was different, so it introduced its own per-anchor bias that persisted until the next re-anchor. Dropping the correction entirely and anchoring at raw `_last_beat` from the fresh probe gave `delta_mid` within ±2 ms across all tempo regimes (except one 240→120 transition, which showed a ~10 ms outlier with no clear cause — left unfixed pending a reproducible case).
+
+A fixed per-anchor bias is acceptable because probe measurements have the same bias and cancel out. The audible offset that remained was audio output latency, which `latency_offset_secs` solves at the compensation layer rather than by fighting the sync model.
+
+### Test Count
+Still 136 tests, all passing. No new tests added this session — the changes are observable behavior fixes, and the sync-model math was already well-covered. A dedicated test for `latency_offset_secs` semantics (round-trip identity when offset=0, expected shift when nonzero) should be added.
+
+---
+
 ## 2026-03-14 — Language/Architecture Session (thuja-language)
 
 ### Context

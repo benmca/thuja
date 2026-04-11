@@ -6,7 +6,7 @@ Requires:
   - carabiner running on localhost:17000
   - Ableton Live (or any Link-enabled app) open with Link enabled
 
-See examples/LinkFollower-GettingStarted.md for full setup instructions.
+See doc/LinkFollower-GettingStarted.md for full setup instructions.
 """
 
 import sys
@@ -40,13 +40,17 @@ except Exception as e:
 
 log("Building generator...")
 
-pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
-                     + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
+# pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
+#                      + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
+#     streammode=streammodes.sequence,
+#     notetype=notetypes.pitch
+# )
+pitches = Itemstream( [['e3', 'b']],
     streammode=streammodes.sequence,
     notetype=notetypes.pitch
 )
 
-rhythms = Itemstream('s s s s e e'.split(),
+rhythms = Itemstream('q'.split(),
                      streammode=streammodes.sequence,
                      tempo=120,
                      notetype=notetypes.rhythm)
@@ -69,7 +73,10 @@ log("Generator ready.")
 
 log("Connecting to carabiner on localhost:17000...")
 try:
-    lf = LinkFollower(host='localhost', port=17000, quantum=4)
+    # latency_offset_secs: positive value shifts notes earlier in wall time.
+    # Tune by ear. Adjust live via `lf.latency_offset_secs = N`.
+    lf = LinkFollower(host='localhost', port=17000, quantum=4,
+                      latency_offset_secs=0.15)
     lf.connect()
     log("Connected. BPM=" + str(lf.bpm) + "  last_beat=" + str(lf._last_beat))
 except Exception as e:
