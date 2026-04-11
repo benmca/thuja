@@ -7,6 +7,7 @@ Tests 10–12 cover NoteGeneratorThread integration (tempo following, quantized
 swap). These also use mocks for both carabiner and Csound.
 """
 from __future__ import print_function
+import time
 import unittest
 from unittest.mock import MagicMock, patch, call
 
@@ -104,10 +105,11 @@ class TestEstablishSync(unittest.TestCase):
 
     def test_establish_sync(self):
         lf, _ = _make_follower(STATUS_120)
+        lf._last_beat_wall_time = time.monotonic()  # reset so elapsed correction is ~0
         lf.establish_sync(10.0)
         sp = lf._sync_point
         self.assertAlmostEqual(sp.csound_time, 10.0)
-        self.assertAlmostEqual(sp.link_beat, 4.0)
+        self.assertAlmostEqual(sp.link_beat, 4.0, places=5)
         self.assertAlmostEqual(sp.bpm, 120.0)
 
 
@@ -121,21 +123,22 @@ class TestCurrentBeat(unittest.TestCase):
         lf, _ = _make_follower(STATUS_120)
         lf._bpm = bpm
         lf._last_beat = sync_beat
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(sync_csound)
         return lf
 
     def test_current_beat_math(self):
         # sync at csound=0, beat=0, bpm=120 (2 beats/sec)
         lf = self._synced_follower(sync_csound=0.0, sync_beat=0.0, bpm=120.0)
-        self.assertAlmostEqual(lf.current_beat(1.0), 2.0)   # 1 sec = 2 beats at 120bpm
-        self.assertAlmostEqual(lf.current_beat(2.0), 4.0)
-        self.assertAlmostEqual(lf.current_beat(0.5), 1.0)
+        self.assertAlmostEqual(lf.current_beat(1.0), 2.0, places=5)
+        self.assertAlmostEqual(lf.current_beat(2.0), 4.0, places=5)
+        self.assertAlmostEqual(lf.current_beat(0.5), 1.0, places=5)
 
     def test_current_beat_with_offset(self):
         # sync at csound=5.0, beat=10.0, bpm=120
         lf = self._synced_follower(sync_csound=5.0, sync_beat=10.0, bpm=120.0)
         # at csound=6.0, 1 more sec = 2 more beats → beat 12
-        self.assertAlmostEqual(lf.current_beat(6.0), 12.0)
+        self.assertAlmostEqual(lf.current_beat(6.0), 12.0, places=5)
 
 
 # ---------------------------------------------------------------------------
@@ -148,10 +151,11 @@ class TestCsoundTimeForBeat(unittest.TestCase):
         lf, _ = _make_follower(STATUS_120)
         lf._bpm = 120.0
         lf._last_beat = 0.0
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(0.0)
         # beat 2 at 120bpm = 1 second
-        self.assertAlmostEqual(lf.csound_time_for_beat(2.0), 1.0)
-        self.assertAlmostEqual(lf.csound_time_for_beat(4.0), 2.0)
+        self.assertAlmostEqual(lf.csound_time_for_beat(2.0), 1.0, places=5)
+        self.assertAlmostEqual(lf.csound_time_for_beat(4.0), 2.0, places=5)
 
     def test_round_trip(self):
         lf, _ = _make_follower(STATUS_120)
@@ -174,18 +178,20 @@ class TestCurrentBeatSurvivsTempoChange(unittest.TestCase):
         # Initial sync: csound=0, beat=0, bpm=120
         lf._bpm = 120.0
         lf._last_beat = 0.0
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(0.0)
 
         # At csound=2.0 we should be at beat 4 (2 sec * 2 beats/sec)
-        self.assertAlmostEqual(lf.current_beat(2.0), 4.0)
+        self.assertAlmostEqual(lf.current_beat(2.0), 4.0, places=5)
 
         # Now at csound=2.0, tempo changes to 60bpm. Carabiner reports beat=4.
         lf._bpm = 60.0
         lf._last_beat = 4.0
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(2.0)
 
         # At csound=4.0, 2 more secs at 60bpm = 2 more beats → beat 6
-        self.assertAlmostEqual(lf.current_beat(4.0), 6.0)
+        self.assertAlmostEqual(lf.current_beat(4.0), 6.0, places=5)
 
 
 # ---------------------------------------------------------------------------

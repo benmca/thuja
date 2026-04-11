@@ -1,6 +1,7 @@
 import math
 import re
 import socket
+import time
 from collections import namedtuple
 
 _SyncPoint = namedtuple('SyncPoint', ['csound_time', 'link_beat', 'bpm'])
@@ -30,6 +31,7 @@ class LinkFollower:
         self._sock = None
         self._bpm = None
         self._last_beat = None
+        self._last_beat_wall_time = None   # monotonic time when _last_beat was recorded
         self._sync_point = None
         self._buf = ''
         self._socket_factory = _socket_factory or (
@@ -77,10 +79,18 @@ class LinkFollower:
 
         Must be called immediately after connect() and immediately after every
         tempo change so that beat/time conversions stay accurate.
+
+        Corrects _last_beat for the wall-clock time elapsed since it was received,
+        so the stored link_beat accurately reflects the beat at csound_time even
+        when there is a delay between connect() and the first establish_sync() call.
         """
+        beat = self._last_beat
+        if self._last_beat_wall_time is not None:
+            elapsed = time.monotonic() - self._last_beat_wall_time
+            beat = self._last_beat + elapsed * self._bpm / 60.0
         self._sync_point = _SyncPoint(
             csound_time=csound_time,
-            link_beat=self._last_beat,
+            link_beat=beat,
             bpm=self._bpm,
         )
 
@@ -184,3 +194,4 @@ class LinkFollower:
             self._bpm = float(bpm_m.group(1))
         if beat_m:
             self._last_beat = float(beat_m.group(1))
+            self._last_beat_wall_time = time.monotonic()

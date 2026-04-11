@@ -547,10 +547,14 @@ class NoteGeneratorThread(threading.Thread):
             if self._streaming:
                 self._fill_buffer(score_time + self._lookahead_secs)
                 while self._buffer and self._buffer[0][0] < score_time:
-                    _, note_str = self._buffer.popleft()
+                    start, note_str = self._buffer.popleft()
                     n = note_str.split()
                     n[1] = '0.0'
                     cpt.inputMessage('\t'.join(n))
+                    beat_now = self.link_follower.current_beat(score_time) if self.link_follower else None
+                    if beat_now is not None:
+                        print("[dispatch] sched={:.4f} score={:.4f} beat={:.4f} beat%1={:.4f}".format(
+                            start, score_time, beat_now, beat_now % 1), flush=True)
             else:
                 if not self.lock.locked():
                     self.lock.acquire()
@@ -636,6 +640,8 @@ class NoteGeneratorThread(threading.Thread):
                 current_beat = self.link_follower.current_beat(score_time)
                 next_beat = math.floor(current_beat) + 1
                 self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
+                print("[poll_link] new_bpm={} score_time={} last_beat={} next_beat={} g.cur_time={}".format(
+                    new_bpm, score_time, self.link_follower._last_beat, next_beat, self.g.cur_time), flush=True)
 
     def _check_pending_swap(self):
         """Fire a queued quantized swap (batch) or cursor reset (streaming)."""
@@ -677,6 +683,13 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
 
     if link_follower is not None:
         link_follower.establish_sync(cs.scoreTime())
+        if streaming:
+            # Snap generator cursor to the next beat boundary so the first note
+            # lands on a beat rather than wherever Csound happened to start.
+            score_time = cs.scoreTime()
+            current_beat = link_follower.current_beat(score_time)
+            next_beat = math.floor(current_beat) + 1
+            g.cur_time = link_follower.csound_time_for_beat(next_beat)
 
     t = NoteGeneratorThread(g, cs, cpt, link_follower=link_follower,
                             streaming=streaming, lookahead_secs=lookahead_secs)
