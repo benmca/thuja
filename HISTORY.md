@@ -4,6 +4,14 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-12 — Bug fix: rest ('r') zeros amplitude (#40)
+
+`generate_next_note()` now sets `amplitude=0` when `frequency==0` (i.e., when a rest is encountered in a pitch stream). Previously, rests only zeroed frequency — amplitude came through unchanged from the amp stream, producing a note that Csound would attempt to play at zero frequency. The fix is applied after all streams and post_processes have run, so user-set amplitude values for non-rest notes are unaffected.
+
+The existing test `test_rest_does_not_zero_amplitude` (which documented the bug) is updated to `test_rest_zeros_amplitude` and now asserts amplitude=0 on rest, with normal amplitude restored on the following non-rest note.
+
+---
+
 ## 2026-04-11 — Per-generator tempo ratio (#46) + multi-generator thread (#47)
 
 ### Per-generator tempo ratio (#46)

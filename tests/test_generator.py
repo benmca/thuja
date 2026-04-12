@@ -682,19 +682,21 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(freqs[1], 0.0)   # 'r' → frequency 0
         self.assertGreater(freqs[2], 0)   # e4 → non-zero freq
 
-    def test_rest_does_not_zero_amplitude(self):
-        # 'r' only sets frequency to 0 — it does not modify the amplitude stream.
-        # The amplitude value from the amp stream is still emitted for a rest note.
+    def test_rest_zeros_amplitude(self):
+        # 'r' in a pitch stream sets frequency to 0 AND zeros amplitude,
+        # producing a silent note regardless of instrument definition (#40).
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
-               .with_pitches(Itemstream(['c4', 'r'], notetype=notetypes.pitch,
+               .with_pitches(Itemstream(['c4', 'r', 'e4'], notetype=notetypes.pitch,
                                         streammode=streammodes.sequence))
                .with_amps(0.75))
-        gen.note_limit = 2
+        gen.note_limit = 3
         gen.generate_notes()
 
-        amp_on_rest = float(gen.notes[1].split()[3])
-        self.assertAlmostEqual(amp_on_rest, 0.75)
+        amps = [float(note.split()[3]) for note in gen.notes]
+        self.assertAlmostEqual(amps[0], 0.75)  # c4 — normal
+        self.assertAlmostEqual(amps[1], 0.0)   # r — zeroed
+        self.assertAlmostEqual(amps[2], 0.75)  # e4 — normal again
 
     def test_octave_persistence_bare_note_inherits_previous_octave(self):
         # When a pitch name has no octave digit, it inherits the octave

@@ -154,5 +154,8 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 
 ## Open Bugs
 
-- **#40** — `'r'` (rest) in pitch stream does not zero amplitude; only frequency is set to 0
-- **#27** — Parent/child `time_limit` and `note_limit` semantics: limits are defaults not constraints; child notes are never filtered; `score_dur` can exceed parent's `time_limit`
+- **#27** — Parent/child `time_limit` and `note_limit` semantics: limits are defaults not constraints; child notes are never filtered; `score_dur` can exceed parent's `time_limit`. Documented as intentional behavior; no code change planned unless a `constrain_children` flag is requested.
+
+## Closed Bugs
+
+- **#40** ✅ — Rest ('r') now zeros amplitude in addition to frequency. Fixed in `generate_next_note()`.

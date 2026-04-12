@@ -258,6 +258,12 @@ class NoteGenerator:
                     value = self.streams[key](note)
                     note.pfields[key] = value
 
+        # Rest: 'r' in a pitch stream sets frequency to 0. Zero amplitude
+        # so the note is silent regardless of the instrument definition.
+        if keys.frequency in note.pfields and note.pfields[keys.frequency] == 0:
+            if keys.amplitude in note.pfields:
+                note.pfields[keys.amplitude] = 0
+
         # Enforce time limit — mirrors the break in the original generate_notes() loop.
         if self.cur_time > self.time_limit > 0:
             return None
