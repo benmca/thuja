@@ -1,3 +1,4 @@
+import heapq
 import math
 import random
 import sys
@@ -531,6 +532,8 @@ class NoteGeneratorThread(threading.Thread):
         self._dispatch_ahead = 0.1  # dispatch notes up to 100ms before due time
         self._probe_interval = 2.0  # seconds between sync probes
         self._last_probe_time = 0.0
+        self._cursor_heap = []   # (cur_time, cursor_index, generator) min-heap
+        self._cursors = []       # flat list of all generators (parent + children)
         return
 
     def run(self):
@@ -594,10 +597,10 @@ class NoteGeneratorThread(threading.Thread):
     def gen(self, quantize=None):
         if self._streaming:
             if quantize is None or self.link_follower is None:
-                self.g.reset_cursor()
+                self._reset_all_cursors()
                 self._flush_stale_buffer()
                 if self.link_follower is not None:
-                    self._beat_snap_cursor()
+                    self._beat_snap_all_cursors()
                 else:
                     self._fast_forward_to(self._csound_time())
                 print("Streaming: cursor reset, buffer flushed.")
@@ -625,14 +628,63 @@ class NoteGeneratorThread(threading.Thread):
     def _csound_time(self):
         return self.cs.scoreTime()
 
+    def _init_cursors(self):
+        """Flatten the generator tree into a cursor list and build the heap."""
+        self._cursors = []
+        self._collect_cursors(self.g, parent=None)
+        for c in self._cursors:
+            c.cur_time = c.start_time
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
+    def _collect_cursors(self, generator, parent):
+        """Recursively walk the tree, applying limit inheritance and start_time offsets.
+
+        Mirrors the child-setup logic in generate_notes() (lines 305-325) so that
+        streaming and batch produce identical output for the same generator tree.
+        """
+        if parent is not None:
+            if generator.generator_dur > 0:
+                generator.time_limit = generator.start_time + generator.generator_dur
+            else:
+                generator.start_time += parent.start_time
+            if parent.time_limit > 0 and generator.time_limit == 0:
+                generator.time_limit = parent.time_limit
+            if parent.note_limit > 0 and generator.note_limit == 0:
+                generator.note_limit = parent.note_limit
+        self._cursors.append(generator)
+        for child in generator.generators:
+            self._collect_cursors(child, parent=generator)
+
+    def _reset_all_cursors(self, reset_streams=False):
+        """Reset every cursor in the tree and rebuild the heap."""
+        if not self._cursors:
+            self._init_cursors()
+        for c in self._cursors:
+            c.reset_cursor(reset_streams=reset_streams)
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
     def _fill_buffer(self, target_time):
-        """Generate notes into the lookahead buffer up to target_time."""
-        while self.g.cur_time < target_time:
-            note_str = self.g.generate_next_note()
-            if note_str is None:
+        """Generate notes into the lookahead buffer up to target_time.
+
+        When the generator has children, pulls from a min-heap of cursors so
+        notes from all voices are interleaved by start time.
+        """
+        if not self._cursors:
+            self._init_cursors()
+
+        while self._cursor_heap:
+            next_time, idx, cursor = self._cursor_heap[0]
+            if next_time >= target_time:
                 break
+            heapq.heappop(self._cursor_heap)
+            note_str = cursor.generate_next_note()
+            if note_str is None:
+                continue
             start = float(note_str.split()[1])
             self._buffer.append((start, note_str))
+            heapq.heappush(self._cursor_heap, (cursor.cur_time, idx, cursor))
 
     def _flush_stale_buffer(self):
         """Discard all buffered notes past the current score time."""
@@ -663,12 +715,9 @@ class NoteGeneratorThread(threading.Thread):
             self._update_tempos(new_bpm)
             if self._streaming:
                 self._flush_stale_buffer()
-                score_time = self._csound_time()
-                current_beat = self.link_follower.current_beat(score_time)
-                next_beat = math.floor(current_beat) + 1
-                self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
-                print("[poll_link] new_bpm={} score_time={} last_beat={} next_beat={} g.cur_time={}".format(
-                    new_bpm, score_time, self.link_follower._last_beat, next_beat, self.g.cur_time), flush=True)
+                self._beat_snap_all_cursors()
+                print("[poll_link] new_bpm={} score_time={} last_beat={} g.cur_time={}".format(
+                    new_bpm, self._csound_time(), self.link_follower._last_beat, self.g.cur_time), flush=True)
 
     def _beat_snap_cursor(self):
         """Set g.cur_time to the Csound time of the next Link beat boundary.
@@ -683,15 +732,30 @@ class NoteGeneratorThread(threading.Thread):
         next_beat = math.floor(current_beat) + 1
         self.g.cur_time = self.link_follower.csound_time_for_beat(next_beat)
 
+    def _beat_snap_all_cursors(self):
+        """Snap all cursors to the next Link beat boundary and rebuild the heap."""
+        if not self._cursors:
+            self._init_cursors()
+        snap_time = self._csound_time()
+        current_beat = self.link_follower.current_beat(snap_time)
+        next_beat = math.floor(current_beat) + 1
+        beat_csound_time = self.link_follower.csound_time_for_beat(next_beat)
+        for cursor in self._cursors:
+            if cursor.start_time <= beat_csound_time:
+                cursor.cur_time = beat_csound_time
+            # else: child hasn't started yet — leave cur_time at its start_time
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
     def _check_pending_swap(self):
         """Fire a queued quantized swap (batch) or cursor reset (streaming)."""
         if self._pending_swap is None or self.link_follower is None:
             return
         if self.link_follower.current_beat(self._csound_time()) >= self._pending_swap.target_beat:
             if self._streaming:
-                self.g.reset_cursor()
+                self._reset_all_cursors()
                 self._flush_stale_buffer()
-                self._beat_snap_cursor()
+                self._beat_snap_all_cursors()
                 self._pending_swap = None
             else:
                 with self.lock:
