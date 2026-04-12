@@ -184,8 +184,9 @@ class NoteGenerator:
         a lookahead buffer on demand rather than pre-baking the full score.
         Call reset_cursor() to restart from the beginning.
         """
-        # Mirror the while-loop guard from generate_notes().
-        if not ((self.note_limit > 0 and self.note_count < self.note_limit) or (self.time_limit > 0)):
+        # 0 means "no limit" for both note_limit and time_limit.
+        # With both at 0, the generator runs indefinitely.
+        if self.note_limit > 0 and self.note_count >= self.note_limit:
             return None
 
         note = Event(pfields=self.pfields, start_time=self.cur_time)

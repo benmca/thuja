@@ -4,6 +4,14 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-12 — Zero limits mean "no limit" (indefinite generation)
+
+`note_limit=0` and `time_limit=0` now both mean "no limit." A generator with both at 0 runs indefinitely — no need for `time_limit=7200` workarounds. Previously, both-zero caused `generate_next_note()` to return `None` immediately.
+
+The entry guard in `generate_next_note()` changed from a combined check (`not ((note_limit > 0 and count < limit) or (time_limit > 0))`) to a simple note_limit exhaustion check (`note_limit > 0 and count >= limit`). The time_limit enforcement later in the method already treated 0 as "no limit" via `cur_time > time_limit > 0`.
+
+---
+
 ## 2026-04-12 — Bug fix: rest ('r') zeros amplitude (#40)
 
 `generate_next_note()` now sets `amplitude=0` when `frequency==0` (i.e., when a rest is encountered in a pitch stream). Previously, rests only zeroed frequency — amplitude came through unchanged from the amp stream, producing a note that Csound would attempt to play at zero frequency. The fix is applied after all streams and post_processes have run, so user-set amplitude values for non-rest notes are unaffected.
