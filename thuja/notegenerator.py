@@ -523,10 +523,15 @@ _PendingSwap = namedtuple('PendingSwap', ['notes', 'target_beat'])
 
 class NoteGeneratorThread(threading.Thread):
 
-    def __init__(self, g, cs, cpt, sleep_interval=.0001, link_follower=None, streaming=False,
+    def __init__(self, g=None, cs=None, cpt=None, sleep_interval=.0001, link_follower=None, streaming=False,
                  lookahead_secs=2.0):
-        self._generators = [g] if not isinstance(g, list) else list(g)
-        self.g = self._generators[0]
+        if g is None:
+            self._generators = []
+        elif isinstance(g, list):
+            self._generators = list(g)
+        else:
+            self._generators = [g]
+        self.g = self._generators[0] if self._generators else None
         self.cs = cs
         self.cpt = cpt
         self.sleep_interval = sleep_interval
@@ -628,6 +633,8 @@ class NoteGeneratorThread(threading.Thread):
                 self._pending_swap = _PendingSwap(notes=None, target_beat=target)
                 print("Streaming reset queued at beat " + str(target))
         else:
+            if self.g is None:
+                return
             print(str(len(self.g.notes)) + " pre-copy.")
             temp = self.g.deepcopy_tree()
             temp.generate_notes()
@@ -662,6 +669,8 @@ class NoteGeneratorThread(threading.Thread):
         else:
             generator.start_time = score_time
         self._generators.append(generator)
+        if self.g is None:
+            self.g = generator
         generator.thread_started = True
         self._rebuild_cursors()
 
@@ -777,6 +786,8 @@ class NoteGeneratorThread(threading.Thread):
         Used after reset_cursor() so stream state advances to the correct
         musical position without dispatching old notes as a burst.
         """
+        if self.g is None:
+            return
         while self.g.cur_time < target_time:
             note_str = self.g.generate_next_note()
             if note_str is None:
@@ -796,8 +807,8 @@ class NoteGeneratorThread(threading.Thread):
             if self._streaming:
                 self._flush_stale_buffer()
                 self._beat_snap_all_cursors()
-                print("[poll_link] new_bpm={} score_time={} last_beat={} g.cur_time={}".format(
-                    new_bpm, self._csound_time(), self.link_follower._last_beat, self.g.cur_time), flush=True)
+                print("[poll_link] new_bpm={} score_time={} last_beat={}".format(
+                    new_bpm, self._csound_time(), self.link_follower._last_beat), flush=True)
 
     def _beat_snap_cursor(self):
         """Set g.cur_time to the Csound time of the next Link beat boundary.
@@ -857,7 +868,7 @@ class NoteGeneratorThread(threading.Thread):
             self._set_generator_tempos(child, bpm, effective_ratio)
 
 
-def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+def kickoff(g=None, orc_file=None, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
             link_follower=None, streaming=False, lookahead_secs=2.0):
     cs = cs_utils.init_csound_with_orc(['-o'+device_string, '--devices', '-+rtaudio=CoreAudio'],
                                        orc_file,
@@ -870,7 +881,7 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
 
     if link_follower is not None:
         link_follower.establish_sync_via_probe(lambda: cs.scoreTime())
-        if streaming:
+        if streaming and g is not None:
             # Snap generator cursor to the next beat boundary so the first note
             # lands on a beat rather than wherever Csound happened to start.
             score_time = cs.scoreTime()
@@ -880,7 +891,7 @@ def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device
 
     t = NoteGeneratorThread(g, cs, cpt, link_follower=link_follower,
                             streaming=streaming, lookahead_secs=lookahead_secs)
-    if streaming and link_follower is not None:
+    if streaming and link_follower is not None and g is not None:
         # Sync generator tempo to the current Link BPM before the thread starts.
         # _update_tempos() only fires on BPM *changes* in the run loop, so if the
         # session has been at a steady tempo since connect() the generator would
