@@ -304,13 +304,13 @@ class NoteGenerator:
             self.notes.append(note_str)
 
         for g in self.generators:
-            # for any child generator, we make a few assumptions. One, the start time of the child is relative
-            #   to the parent.
-            #   Second, that the parent's limits should always fall to children if they are not set.
-            #   If the child's time_limit is set, it's treated as absolute time limit, despite the fact the start time
-            #   is relative to the parent. For this case, we introduce the generator_duration, which is a cue to this
-            #   condition that the time_limit can be set relative to the start_time.
-            #   2025.04.01 - I type this out as a note for myself, to make these side effects more explicit.
+            # Parent limits are DEFAULTS, not hard constraints (#27). If a child
+            # sets its own time_limit or note_limit, the child's value wins — even
+            # if it exceeds the parent's. This matches all real usage in csound-pieces
+            # and is replicated in _collect_cursors() for the streaming path.
+            #
+            # start_time is relative to the parent (accumulated at each level).
+            # generator_dur is a relative duration: time_limit = start_time + dur.
             if g.generator_dur > 0:
                 g.time_limit = g.start_time + g.generator_dur
                 # assume here that g.start_time is absolute and should not be offset.

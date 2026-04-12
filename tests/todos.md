@@ -132,11 +132,10 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 - `LinkFollower.probe_sync()` — returns 6-tuple; delta = model - probe; drain counts correct; sends status request; RTT non-negative
 - `LinkFollower.latency_offset_secs` — identity at offset=0; current_beat shifted forward; csound_time_for_beat shifted earlier; round-trip with offset; live-mutable; constructor default 0; constructor accepts offset
 
----
-
-## Outstanding Gaps
-
-(none currently tracked)
+**feature/streaming-children (2026-04-11):**
+- Streaming parent + child: interleaved notes; notes in start-time order; child offset start_time honored; parent time_limit inherited; generator_dur respected; streaming matches batch output
+- 3-level nesting: all instruments appear; start_time chains correctly across levels; limit inheritance cascades
+- Cursor reset: gen() resets all cursors; future notes flushed; fill after reset produces notes
 
 ---
 
