@@ -432,5 +432,199 @@ class TestQuantizeTargetBeatSurvivesTempoChange(unittest.TestCase):
         self.assertIsNone(t._pending_swap)  # fired at target beat
 
 
+# ---------------------------------------------------------------------------
+# 13. latency_offset_secs
+# ---------------------------------------------------------------------------
+
+class TestLatencyOffset(unittest.TestCase):
+
+    def _synced_follower(self, offset=0.0, sync_csound=0.0, sync_beat=0.0, bpm=120.0):
+        lf, _ = _make_follower(STATUS_120)
+        lf.latency_offset_secs = offset
+        lf._bpm = bpm
+        lf._last_beat = sync_beat
+        lf._last_beat_wall_time = time.monotonic()
+        lf.establish_sync(sync_csound)
+        return lf
+
+    def test_identity_at_zero_offset(self):
+        lf = self._synced_follower(offset=0.0)
+        self.assertAlmostEqual(lf.current_beat(1.0), 2.0, places=5)
+        self.assertAlmostEqual(lf.csound_time_for_beat(2.0), 1.0, places=5)
+
+    def test_current_beat_shifted_forward(self):
+        lf = self._synced_follower(offset=0.0)
+        beat_no_offset = lf.current_beat(1.0)
+        lf.latency_offset_secs = 0.5
+        beat_with_offset = lf.current_beat(1.0)
+        # offset=0.5 at 120bpm → 1 extra beat
+        self.assertAlmostEqual(beat_with_offset - beat_no_offset, 1.0, places=5)
+
+    def test_csound_time_shifted_earlier(self):
+        lf = self._synced_follower(offset=0.0)
+        time_no_offset = lf.csound_time_for_beat(4.0)
+        lf.latency_offset_secs = 0.5
+        time_with_offset = lf.csound_time_for_beat(4.0)
+        self.assertAlmostEqual(time_no_offset - time_with_offset, 0.5, places=5)
+
+    def test_round_trip_with_offset(self):
+        lf = self._synced_follower(offset=0.1, sync_beat=4.0, sync_csound=5.0)
+        for t in (5.0, 6.0, 7.5, 10.0):
+            beat = lf.current_beat(t)
+            self.assertAlmostEqual(lf.csound_time_for_beat(beat), t, places=5)
+
+    def test_live_mutable(self):
+        lf = self._synced_follower(offset=0.0)
+        beat_before = lf.current_beat(1.0)
+        lf.latency_offset_secs = 1.0
+        beat_after = lf.current_beat(1.0)
+        # 1 second at 120bpm = 2 beats difference
+        self.assertAlmostEqual(beat_after - beat_before, 2.0, places=5)
+
+    def test_constructor_default_is_zero(self):
+        lf, _ = _make_follower(STATUS_120)
+        self.assertEqual(lf.latency_offset_secs, 0.0)
+
+    def test_constructor_accepts_offset(self):
+        responses = [STATUS_120]
+        sock = _make_mock_socket(responses)
+        lf = LinkFollower(latency_offset_secs=0.05, _socket_factory=lambda: sock)
+        self.assertAlmostEqual(lf.latency_offset_secs, 0.05)
+
+
+# ---------------------------------------------------------------------------
+# 14. establish_sync_via_probe
+# ---------------------------------------------------------------------------
+
+class TestEstablishSyncViaProbe(unittest.TestCase):
+
+    def _probe_responses(self, drain=None, reply=STATUS_120, post=None):
+        """Build a recv side_effect list matching establish_sync_via_probe's call pattern.
+
+        _drain_nonblocking: 1 recv call (non-blocking)
+        _recv_line_blocking: 1 recv call (blocking)
+        post-recv drain: 1 recv call (non-blocking)
+        """
+        effects = []
+        # drain: one non-blocking recv
+        effects.append(drain.encode('utf-8') if isinstance(drain, str) else (drain or BlockingIOError))
+        # reply: one blocking recv
+        effects.append(reply.encode('utf-8') if isinstance(reply, str) else reply)
+        # post-recv drain: one non-blocking recv
+        effects.append(post.encode('utf-8') if isinstance(post, str) else (post or BlockingIOError))
+        return effects
+
+    def test_anchors_from_fresh_status(self):
+        lf, sock = _make_follower(STATUS_120)
+        sock.recv.side_effect = self._probe_responses(reply=STATUS_140)
+        rtt = lf.establish_sync_via_probe(lambda: 10.0)
+        sp = lf._sync_point
+        self.assertAlmostEqual(sp.csound_time, 10.0)
+        self.assertAlmostEqual(sp.link_beat, 8.0)  # from STATUS_140
+        self.assertAlmostEqual(sp.bpm, 140.0)
+
+    def test_returns_rtt(self):
+        lf, sock = _make_follower(STATUS_120)
+        sock.recv.side_effect = self._probe_responses()
+        rtt = lf.establish_sync_via_probe(lambda: 0.0)
+        self.assertIsInstance(rtt, float)
+        self.assertGreaterEqual(rtt, 0.0)
+
+    def test_sends_status_request(self):
+        lf, sock = _make_follower(STATUS_120)
+        sock.recv.side_effect = self._probe_responses()
+        lf.establish_sync_via_probe(lambda: 0.0)
+        sock.sendall.assert_called_with(b'status\n')
+
+    def test_drains_stale_lines_before_send(self):
+        lf, sock = _make_follower(STATUS_120)
+        # Stale STATUS_140 in buffer; fresh STATUS_120 is the reply
+        sock.recv.side_effect = self._probe_responses(drain=STATUS_140, reply=STATUS_120)
+        lf.establish_sync_via_probe(lambda: 5.0)
+        sp = lf._sync_point
+        # Anchored to fresh reply, not stale drain
+        self.assertAlmostEqual(sp.link_beat, 4.0)
+        self.assertAlmostEqual(sp.bpm, 120.0)
+
+    def test_prefers_latest_post_recv_line(self):
+        lf, sock = _make_follower(STATUS_120)
+        # Reply is STATUS_120, but STATUS_140 arrives in post-drain
+        sock.recv.side_effect = self._probe_responses(reply=STATUS_120, post=STATUS_140)
+        lf.establish_sync_via_probe(lambda: 5.0)
+        sp = lf._sync_point
+        self.assertAlmostEqual(sp.link_beat, 8.0)
+        self.assertAlmostEqual(sp.bpm, 140.0)
+
+    def test_uses_csound_time_fn(self):
+        lf, sock = _make_follower(STATUS_120)
+        sock.recv.side_effect = self._probe_responses()
+        call_count = [0]
+        def time_fn():
+            call_count[0] += 1
+            return 42.0
+        lf.establish_sync_via_probe(time_fn)
+        self.assertEqual(call_count[0], 1)
+        self.assertAlmostEqual(lf._sync_point.csound_time, 42.0)
+
+
+# ---------------------------------------------------------------------------
+# 15. probe_sync
+# ---------------------------------------------------------------------------
+
+class TestProbeSync(unittest.TestCase):
+
+    def _probe_responses(self, drain=None, reply=STATUS_120, post=None):
+        """Build recv side_effect list matching probe_sync's call pattern.
+
+        Same as establish_sync_via_probe: 3 recv calls total.
+        """
+        effects = []
+        effects.append(drain.encode('utf-8') if isinstance(drain, str) else (drain or BlockingIOError))
+        effects.append(reply.encode('utf-8') if isinstance(reply, str) else reply)
+        effects.append(post.encode('utf-8') if isinstance(post, str) else (post or BlockingIOError))
+        return effects
+
+    def _synced_follower(self, probe_responses, sync_beat=0.0, bpm=120.0):
+        lf, sock = _make_follower(STATUS_120)
+        lf._bpm = bpm
+        lf._last_beat = sync_beat
+        lf._last_beat_wall_time = time.monotonic()
+        lf.establish_sync(0.0)
+        sock.recv.side_effect = probe_responses
+        return lf, sock
+
+    def test_returns_six_tuple(self):
+        lf, sock = self._synced_follower(self._probe_responses())
+        result = lf.probe_sync(0.0)
+        self.assertEqual(len(result), 6)
+
+    def test_delta_is_model_minus_probe(self):
+        lf, sock = self._synced_follower(self._probe_responses())
+        model_b, probe_b, delta, _, _, _ = lf.probe_sync(0.0)
+        self.assertAlmostEqual(delta, model_b - probe_b, places=5)
+
+    def test_sends_status_request(self):
+        lf, sock = self._synced_follower(self._probe_responses())
+        lf.probe_sync(0.0)
+        sock.sendall.assert_called_with(b'status\n')
+
+    def test_drained_before_counts_stale_lines(self):
+        lf, sock = self._synced_follower(
+            self._probe_responses(drain=STATUS_140, reply=STATUS_120))
+        _, _, _, drained_before, _, _ = lf.probe_sync(0.0)
+        self.assertEqual(drained_before, 1)
+
+    def test_drained_after_counts_late_lines(self):
+        lf, sock = self._synced_follower(
+            self._probe_responses(reply=STATUS_120, post=STATUS_140))
+        _, _, _, _, drained_after, _ = lf.probe_sync(0.0)
+        self.assertEqual(drained_after, 1)
+
+    def test_rtt_is_non_negative(self):
+        lf, sock = self._synced_follower(self._probe_responses())
+        _, _, _, _, _, rtt = lf.probe_sync(0.0)
+        self.assertGreaterEqual(rtt, 0.0)
+
+
 if __name__ == '__main__':
     unittest.main()
