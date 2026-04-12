@@ -679,7 +679,15 @@ class NoteGeneratorThread(threading.Thread):
         # next BPM change in the Link session.
         if self.link_follower is not None and self.link_follower.bpm is not None:
             self._set_generator_tempos(generator, self.link_follower.bpm, 1.0)
-        self._rebuild_cursors()
+        # Collect and reset only the new generator's cursors. Existing
+        # generators keep their current positions and stream state.
+        old_len = len(self._cursors)
+        self._collect_cursors(generator, parent=None)
+        for c in self._cursors[old_len:]:
+            c.reset_cursor()
+        # Rebuild heap from all cursors at their current positions.
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
 
     def remove_generator(self, generator):
         """Remove a top-level generator from the thread.
@@ -691,15 +699,31 @@ class NoteGeneratorThread(threading.Thread):
             self._generators.remove(generator)
             if generator is self.g and self._generators:
                 self.g = self._generators[0]
-            self._rebuild_cursors()
+            # Rebuild cursor list without resetting remaining generators.
+            self._rebuild_cursors_no_reset()
 
     def _rebuild_cursors(self):
-        """Rebuild the flat cursor list and heap from all generator trees."""
+        """Rebuild the flat cursor list and heap, resetting all cursors.
+
+        Used by _init_cursors (first-time setup) and gen() (full restart).
+        """
         self._cursors = []
         for root in self._generators:
             self._collect_cursors(root, parent=None)
         for c in self._cursors:
             c.reset_cursor()
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
+    def _rebuild_cursors_no_reset(self):
+        """Rebuild the cursor list and heap without resetting any cursors.
+
+        Used by remove_generator — remaining generators keep their current
+        positions and stream state.
+        """
+        self._cursors = []
+        for root in self._generators:
+            self._collect_cursors(root, parent=None)
         self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
         heapq.heapify(self._cursor_heap)
 

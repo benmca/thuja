@@ -603,6 +603,8 @@ class TestMultiGenerator(unittest.TestCase):
         self.assertIn('i2', instruments)
 
     def test_add_generator_mid_run(self):
+        # After adding g2, g1 keeps its current position (not reset).
+        # Fill further to get notes from both.
         g1 = _simple_generator(note_limit=0, tempo=120)
         g1.time_limit = 10.0
         g1.streams[keys.instrument] = Itemstream([1])
@@ -617,12 +619,30 @@ class TestMultiGenerator(unittest.TestCase):
         g2.streams[keys.instrument] = Itemstream([2])
         t.add_generator(g2)
         t._buffer.clear()
-        t._fill_buffer(2.0)
+        # Fill to 4.0 — g1 continues from ~2.0, g2 starts fresh at 0.0
+        t._fill_buffer(4.0)
         instruments_after = set(n.split()[0] for _, n in t._buffer)
         self.assertIn('i1', instruments_after)
         self.assertIn('i2', instruments_after)
 
+    def test_add_generator_does_not_reset_existing(self):
+        # Regression: add_generator used to call _rebuild_cursors which reset
+        # ALL generators, causing existing ones to replay from the beginning
+        # (burst of past notes on next fill).
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        t, _ = _make_streaming_thread(g1)
+        t._fill_buffer(3.0)
+        g1_time_after_first_fill = g1.cur_time
+
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        t.add_generator(g2)
+        # g1's cursor should NOT have been reset
+        self.assertEqual(g1.cur_time, g1_time_after_first_fill)
+
     def test_remove_generator(self):
+        # After removing g2, g1 keeps its position (not reset).
         g1 = _simple_generator(note_limit=0, tempo=120)
         g1.time_limit = 10.0
         g1.streams[keys.instrument] = Itemstream([1])
@@ -634,9 +654,12 @@ class TestMultiGenerator(unittest.TestCase):
         cpt_mock = MagicMock()
         t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
         t._fill_buffer(2.0)
+        g1_time_before_remove = g1.cur_time
         t._buffer.clear()
         t.remove_generator(g2)
-        t._fill_buffer(2.0)
+        # g1 should keep its position
+        self.assertEqual(g1.cur_time, g1_time_before_remove)
+        t._fill_buffer(4.0)
         instruments = set(n.split()[0] for _, n in t._buffer)
         self.assertIn('i1', instruments)
         self.assertNotIn('i2', instruments)
