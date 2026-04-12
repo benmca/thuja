@@ -680,6 +680,16 @@ class TestMultiGenerator(unittest.TestCase):
         t.add_generator(g1, quantize='beat')
         self.assertAlmostEqual(g1.streams[keys.rhythm].tempo, 73.0)
 
+    def test_add_generator_twice_is_noop(self):
+        # Calling add_generator with the same generator object a second time
+        # should be a no-op — not add a duplicate that shares stream state.
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        t, _ = _make_streaming_thread(g1)
+        self.assertEqual(len(t._generators), 1)
+        t.add_generator(g1)
+        self.assertEqual(len(t._generators), 1)
+
     def test_add_generator_starts_at_score_time(self):
         g1 = _simple_generator(note_limit=0, tempo=120)
         g1.time_limit = 10.0

@@ -661,6 +661,8 @@ class NoteGeneratorThread(threading.Thread):
 
         Without a LinkFollower, quantize is ignored (always immediate).
         """
+        if generator in self._generators:
+            return
         score_time = self._csound_time()
         if quantize is not None and self.link_follower is not None:
             q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
