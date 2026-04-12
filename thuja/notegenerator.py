@@ -690,17 +690,28 @@ class NoteGeneratorThread(threading.Thread):
         heapq.heapify(self._cursor_heap)
 
     def remove_generator(self, generator):
-        """Remove a top-level generator from the thread.
+        """Remove a top-level generator and flush its buffered notes.
 
-        Notes already in the buffer still dispatch; no new notes are generated
-        from this generator or its children.
+        Remaining generators keep their positions. Notes from the removed
+        generator that were already in the buffer are discarded so they
+        don't play out after removal.
         """
         if generator in self._generators:
+            # Collect instrument identifiers from the removed generator tree
+            # so we can filter its notes from the buffer.
+            removed_cursors = set()
+            self._collect_tree_members(generator, removed_cursors)
             self._generators.remove(generator)
             if generator is self.g and self._generators:
                 self.g = self._generators[0]
             # Rebuild cursor list without resetting remaining generators.
             self._rebuild_cursors_no_reset()
+            # Flush buffered notes from the removed generator. We can't
+            # identify them by instrument alone (multiple generators could
+            # share an instrument number), so flush all future notes and
+            # let remaining generators refill on the next tick.
+            score_time = self._csound_time()
+            self._buffer = deque((t, n) for t, n in self._buffer if t <= score_time)
 
     def _rebuild_cursors(self):
         """Rebuild the flat cursor list and heap, resetting all cursors.
