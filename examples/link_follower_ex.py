@@ -40,17 +40,13 @@ except Exception as e:
 
 log("Building generator...")
 
-# pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
-#                      + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
-#     streammode=streammodes.sequence,
-#     notetype=notetypes.pitch
-# )
-pitches = Itemstream( [['e3', 'b']],
+pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
+                     + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
     streammode=streammodes.sequence,
     notetype=notetypes.pitch
 )
 
-rhythms = Itemstream('q'.split(),
+rhythms = Itemstream('s s s s e e'.split(),
                      streammode=streammodes.sequence,
                      tempo=120,
                      notetype=notetypes.rhythm)
@@ -63,9 +59,6 @@ g = (
     .with_freqs(pitches)
 )
 
-# In streaming mode the thread generates notes on demand — no pre-bake needed.
-# time_limit drives generate_next_note() so the pattern cycles indefinitely.
-g.time_limit = 7200
 log("Generator ready.")
 # ---------------------------------------------------------------------------
 # Connect to Ableton Link via carabiner
