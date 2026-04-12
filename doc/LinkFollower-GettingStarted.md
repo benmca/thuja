@@ -105,6 +105,26 @@ python link_follower_ex.py
 
 ---
 
+## Quantum and time signature
+
+`LinkFollower(quantum=4)` tells Thuja how many beats make a bar. This is used by `quantize='bar'` to align generators with Ableton's bar downbeats.
+
+**Important:** the Ableton Link protocol does not transmit time signature. Ableton lets you set the denominator (2, 4, 8, 16) but Link only shares tempo, beat count, and phase. The `quantum` parameter must be set manually to match your Ableton session:
+
+| Ableton time sig | quantum |
+|---|---|
+| 4/4 | 4 (default) |
+| 3/4 | 3 |
+| 6/8 | 6 |
+| 5/4 | 5 |
+| 7/8 | 7 |
+
+If quantum doesn't match Ableton's time signature, `quantize='bar'` will land on the wrong beat. `quantize='beat'` (quantum=1) is unaffected.
+
+You can change quantum at runtime: `lf.quantum = 3`. The next `add_generator(quantize='bar')` or `gen(quantize='bar')` call will use the new value.
+
+---
+
 ## Notes on calculating latency
 
 Even with a perfectly accurate sync model, notes sound late because the audio pipeline after Csound's score engine takes time to reach the speakers. The `latency_offset_secs` field on `LinkFollower` is how you compensate.

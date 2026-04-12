@@ -65,8 +65,11 @@ log("Generator ready.")
 
 log("Connecting to carabiner on localhost:17000...")
 try:
+    # quantum: beats per bar. Must match Ableton's time signature numerator.
+    #   Link does not transmit time signature — this is manual.
+    #   4/4 → 4, 3/4 → 3, 6/8 → 6, etc. Change live via `lf.quantum = N`.
     # latency_offset_secs: positive value shifts notes earlier in wall time.
-    # Tune by ear. Adjust live via `lf.latency_offset_secs = N`.
+    #   Tune by ear. Adjust live via `lf.latency_offset_secs = N`.
     lf = LinkFollower(host='localhost', port=17000, quantum=4,
                       latency_offset_secs=0.15)
     lf.connect()
