@@ -64,6 +64,10 @@ class LinkFollower:
         if not line:
             raise ValueError("carabiner connected but sent no data within " + str(timeout) + "s")
         self._apply_status(line)
+        if self._last_phase is None:
+            # Carabiner 1.2+ doesn't include phase in status. Query it
+            # separately so bar-aligned quantize works.
+            self._query_phase()
         if self._bpm is None:
             raise ValueError(
                 "carabiner status line did not match expected format.\n"
@@ -305,6 +309,32 @@ class LinkFollower:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _query_phase(self):
+        """Compute bar_origin from carabiner's beat-at-time and phase-at-time.
+
+        Used when the status response doesn't include phase (carabiner 1.2+).
+        Queries beat and phase at Link time=0, computes bar_origin (a Link
+        beat number on an Ableton downbeat), and derives _last_phase for the
+        current _last_beat. bar_origin is constant for the session.
+        """
+        q = self.quantum
+        self._sock.sendall('beat-at-time 0 {}\n'.format(q).encode('utf-8'))
+        beat_line = self._recv_line_blocking()
+        self._sock.sendall('phase-at-time 0 {}\n'.format(q).encode('utf-8'))
+        phase_line = self._recv_line_blocking()
+
+        beat_m = _BEAT_RE.search(beat_line)
+        phase_m = _PHASE_RE.search(phase_line)
+        if beat_m and phase_m:
+            beat_at_0 = float(beat_m.group(1))
+            phase_at_0 = float(phase_m.group(1))
+            # bar_origin: a Link beat that falls on an Ableton downbeat.
+            # Downbeats repeat every `quantum` beats from here.
+            bar_origin = beat_at_0 - phase_at_0
+            # Derive _last_phase so next_boundary can use its standard formula.
+            if self._last_beat is not None:
+                self._last_phase = (self._last_beat - bar_origin) % q
 
     def _recv_line_blocking(self):
         """Read one newline-terminated line from the socket, blocking."""
