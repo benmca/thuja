@@ -659,6 +659,27 @@ class TestMultiGenerator(unittest.TestCase):
         # g2 should NOT be reset
         self.assertEqual(g2.cur_time, g2_time_before)
 
+    def test_add_generator_syncs_tempo_to_link_bpm(self):
+        # Regression: add_generator didn't sync the new generator's rhythm
+        # streams to the current Link BPM. The generator kept its constructor
+        # tempo until the next BPM change in the Link session — so initial
+        # playback was at the wrong tempo.
+        from thuja.link_follower import LinkFollower
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        lf = MagicMock(spec=LinkFollower)
+        lf.connected = True
+        lf.bpm = 73.0
+        lf.current_beat.return_value = 0.0
+        lf.csound_time_for_beat.return_value = 0.5
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(cs=cs_mock, cpt=cpt_mock, link_follower=lf, streaming=True)
+        # Constructor tempo is 120, Link is at 73
+        t.add_generator(g1, quantize='beat')
+        self.assertAlmostEqual(g1.streams[keys.rhythm].tempo, 73.0)
+
     def test_add_generator_starts_at_score_time(self):
         g1 = _simple_generator(note_limit=0, tempo=120)
         g1.time_limit = 10.0
