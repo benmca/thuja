@@ -97,7 +97,29 @@ python link_follower_ex.py
 
 **Sync point**: recorded when `link_follower.establish_sync_via_probe(csound_time_fn)` is called. Maps Csound score time to Link beat time. Unlike the passive `establish_sync()`, the "via probe" variant sends a fresh `status\n` request to carabiner and anchors against the reply — this avoids stale-line errors where a pushed status update had been in-flight for an unknown time. Re-anchoring happens automatically in `kickoff` (initial sync) and on every tempo change detected by `_poll_link`.
 
-**`gen(quantize=4)`**: regenerates notes and queues the swap to fire at the next 4-beat boundary. `quantize=1` = next beat, `quantize=8` = next 2-bar phrase.
+**Multiple generators**: `NoteGeneratorThread` accepts a single generator or a list. Add and remove voices mid-performance:
+
+```python
+t = ko(orc_file='sine.orc', streaming=True, link_follower=lf)
+t.add_generator(a, quantize='bar')   # starts on next Ableton bar downbeat
+t.add_generator(b, quantize='beat')  # starts on next beat
+t.remove_generator(a)                # silences immediately, flushes buffer
+```
+
+Calling `add_generator` with the same generator twice is a no-op. Generators added mid-performance automatically sync to the current Link BPM.
+
+**`gen()`** — resetting generators: flushes stale notes from the buffer, resets the cursor, and re-snaps to the beat grid. Supports selective reset and full stream restart:
+
+```python
+t.gen()                                        # reset all generators
+t.gen(generator=a)                             # reset only a (others keep playing)
+t.gen(generator=a, reset_streams=True)         # full restart: reset a's stream
+                                               # indices, octave state, heap state
+t.gen(quantize=4)                              # queue reset at next bar boundary
+t.gen(generator=a, quantize='bar')             # selective reset at next bar
+```
+
+**Important:** don't call `a.reset_cursor()` directly on a live generator — it bypasses the buffer flush and beat-snap, causing a burst of past notes. Always use `t.gen()`.
 
 **Target beat**: stored as a Link beat number, not a Csound time. Survives tempo changes — the swap fires at the right musical moment regardless of what happened to tempo between the call and the boundary.
 
