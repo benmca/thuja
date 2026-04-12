@@ -672,6 +672,11 @@ class NoteGeneratorThread(threading.Thread):
         if self.g is None:
             self.g = generator
         generator.thread_started = True
+        # Sync the new generator's rhythm streams to the current Link BPM.
+        # Without this, the generator keeps its constructor tempo until the
+        # next BPM change in the Link session.
+        if self.link_follower is not None and self.link_follower.bpm is not None:
+            self._set_generator_tempos(generator, self.link_follower.bpm, 1.0)
         self._rebuild_cursors()
 
     def remove_generator(self, generator):
@@ -901,7 +906,7 @@ def kickoff(g=None, orc_file=None, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\
     t.start()
     return t
 
-def ko(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
+def ko(g=None, orc_file=None, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',
        link_follower=None, streaming=False, lookahead_secs=2.0):
     return kickoff(g, orc_file, scorestring=scorestring, device_string=device_string,
                    link_follower=link_follower, streaming=streaming, lookahead_secs=lookahead_secs)
