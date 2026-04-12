@@ -609,18 +609,21 @@ class NoteGeneratorThread(threading.Thread):
 
         self.stop_event.clear()
 
-    def gen(self, quantize=None, generator=None):
+    def gen(self, quantize=None, generator=None, reset_streams=False):
         """Regenerate notes.
 
         generator: if set, reset only this generator's cursor tree (selective).
                    If None, reset all generators (current behavior).
+        reset_streams: if True, also reset Itemstream indices, octave state,
+                   and heap state — a full restart from the beginning of
+                   each pattern. Default False preserves stream positions.
         """
         if self._streaming:
             if quantize is None or self.link_follower is None:
                 if generator is not None:
-                    self._reset_generator_cursors(generator)
+                    self._reset_generator_cursors(generator, reset_streams=reset_streams)
                 else:
-                    self._reset_all_cursors()
+                    self._reset_all_cursors(reset_streams=reset_streams)
                 self._flush_stale_buffer()
                 if self.link_follower is not None:
                     self._beat_snap_all_cursors()
@@ -778,7 +781,7 @@ class NoteGeneratorThread(threading.Thread):
         self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
         heapq.heapify(self._cursor_heap)
 
-    def _reset_generator_cursors(self, generator):
+    def _reset_generator_cursors(self, generator, reset_streams=False):
         """Reset cursors for a single generator tree without touching others."""
         if not self._cursors:
             self._init_cursors()
@@ -786,7 +789,7 @@ class NoteGeneratorThread(threading.Thread):
         self._collect_tree_members(generator, targets)
         for c in self._cursors:
             if c in targets:
-                c.reset_cursor()
+                c.reset_cursor(reset_streams=reset_streams)
         self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
         heapq.heapify(self._cursor_heap)
 
