@@ -10,8 +10,9 @@ _PendingSwap = namedtuple('PendingSwap', ['notes', 'target_beat'])
 # Carabiner 1.2+ format: status { :peers N :bpm 120.0 :start N :beat N }
 # Carabiner legacy format: (status bpm 120.0 beat 0.0 ...)
 # Both are matched by making the leading colon optional.
-_BPM_RE  = re.compile(r':?bpm\s+([\d.]+)')
-_BEAT_RE = re.compile(r':?beat\s+([\d.]+)')
+_BPM_RE   = re.compile(r':?bpm\s+([\d.]+)')
+_BEAT_RE  = re.compile(r':?beat\s+([\d.]+)')
+_PHASE_RE = re.compile(r':?phase\s+([\d.]+)')
 
 
 class LinkFollower:
@@ -36,6 +37,7 @@ class LinkFollower:
         self._sock = None
         self._bpm = None
         self._last_beat = None
+        self._last_phase = None            # bar phase from carabiner (beat % quantum from Ableton's perspective)
         self._last_beat_wall_time = None   # monotonic time when _last_beat was recorded
         self._sync_point = None
         self._buf = ''
@@ -176,12 +178,28 @@ class LinkFollower:
 
         quantum=1 → next beat; quantum=4 → next bar; quantum=8 → next 2-bar phrase.
         Defaults to self.quantum (set at construction, default 4).
+
+        Uses phase from carabiner to align with Ableton's actual bar structure.
+        bar_origin = _last_beat - _last_phase gives a Link beat number that
+        corresponds to an Ableton downbeat. All boundaries are multiples of
+        quantum from that origin, so they land on Ableton's grid regardless
+        of when the Link session started.
+
+        Without phase data, falls back to multiples of quantum from beat 0.
         """
         q = quantum if quantum is not None else self.quantum
         cb = self.current_beat(csound_time)
-        # Always the strictly next boundary: floor(cb/q) + 1
-        # so calling gen() exactly on a boundary waits for the following one.
-        return (math.floor(cb / q) + 1) * q
+
+        if self._last_phase is not None and self._last_beat is not None:
+            # bar_origin is a Link beat number on Ableton's downbeat grid.
+            # Since phase = beat % session_quantum, bar_origin is always an
+            # integer multiple of the session quantum — works for any q.
+            bar_origin = self._last_beat - self._last_phase
+            dist = cb - bar_origin
+            periods = math.floor(dist / q)
+            return bar_origin + (periods + 1) * q
+        else:
+            return (math.floor(cb / q) + 1) * q
 
     def probe_sync(self, csound_time):
         """Request fresh status from carabiner and compare with sync model.
@@ -309,10 +327,13 @@ class LinkFollower:
           1.2+:   status { :peers N :bpm 120.0 :start N :beat N }
           legacy: (status bpm 120.0 beat 0.0 phase 0.0 metro (...))
         """
-        bpm_m  = _BPM_RE.search(line)
-        beat_m = _BEAT_RE.search(line)
+        bpm_m   = _BPM_RE.search(line)
+        beat_m  = _BEAT_RE.search(line)
+        phase_m = _PHASE_RE.search(line)
         if bpm_m:
             self._bpm = float(bpm_m.group(1))
         if beat_m:
             self._last_beat = float(beat_m.group(1))
             self._last_beat_wall_time = time.monotonic()
+        if phase_m:
+            self._last_phase = float(phase_m.group(1))

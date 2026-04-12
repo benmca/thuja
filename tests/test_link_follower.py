@@ -203,10 +203,9 @@ class TestNextBoundaryBeat(unittest.TestCase):
     def _follower_at_beat(self, current_beat_val, bpm=120.0):
         lf, _ = _make_follower(STATUS_120)
         lf._bpm = bpm
-        lf._last_beat = 0.0
-        lf.establish_sync(0.0)
-        # set sync so current_beat(0.0) == current_beat_val
         lf._last_beat = current_beat_val
+        lf._last_phase = current_beat_val % lf.quantum
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(0.0)
         return lf
 
@@ -230,6 +229,8 @@ class TestNextBoundaryBar(unittest.TestCase):
         lf, _ = _make_follower(STATUS_120)
         lf._bpm = 120.0
         lf._last_beat = current_beat_val
+        lf._last_phase = current_beat_val % lf.quantum
+        lf._last_beat_wall_time = time.monotonic()
         lf.establish_sync(0.0)
         return lf
 
@@ -252,6 +253,30 @@ class TestNextBoundaryBar(unittest.TestCase):
         lf = self._follower_at_beat(3.9)
         lf.quantum = 4
         self.assertAlmostEqual(lf.next_boundary(0.0), 4.0)
+
+    def test_next_boundary_bar_with_phase_offset(self):
+        # Regression: if Link's beat origin is offset from Ableton's bar
+        # structure by 2 beats, bar boundaries should still align with
+        # Ableton's downbeats, not multiples of 4 from beat 0.
+        # Scenario: Ableton downbeats at beats 2, 6, 10, 14...
+        # current_beat = 3.5 → next downbeat should be 6.0, not 4.0.
+        lf, _ = _make_follower(STATUS_120)
+        lf._bpm = 120.0
+        lf._last_beat = 3.5
+        lf._last_phase = 1.5   # 1.5 beats into the bar → downbeat was at 2.0
+        lf._last_beat_wall_time = time.monotonic()
+        lf.establish_sync(0.0)
+        self.assertAlmostEqual(lf.next_boundary(0.0, quantum=4), 6.0)
+
+    def test_next_boundary_beat_unaffected_by_phase_offset(self):
+        # quantum=1 should give next integer beat regardless of bar phase.
+        lf, _ = _make_follower(STATUS_120)
+        lf._bpm = 120.0
+        lf._last_beat = 3.5
+        lf._last_phase = 1.5
+        lf._last_beat_wall_time = time.monotonic()
+        lf.establish_sync(0.0)
+        self.assertAlmostEqual(lf.next_boundary(0.0, quantum=1), 4.0)
 
 
 # ---------------------------------------------------------------------------
