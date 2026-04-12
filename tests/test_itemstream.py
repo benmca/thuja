@@ -127,8 +127,8 @@ class TestItemstreams(unittest.TestCase):
     # ------------------------------------------------------------------ #
 
     def test_mapping_stream_get_next_value_returns_correct_dict(self):
-        # get_next_value() on a mapping stream returns a dict whose keys
-        # match mapping_keys and whose values come from the corresponding list.
+        # Verifies #35: get_next_value() on a mapping stream returns a dict
+        # whose keys match mapping_keys and values come from the corresponding list.
         rhythms = ['h', 'q', 'e']
         indexes = [1.0, 2.0, 3.0]
         stream = Itemstream(
@@ -140,7 +140,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertAlmostEqual(first[keys.index], 1.0)
 
     def test_mapping_stream_values_advance_in_sync(self):
-        # Each call to get_next_value() advances both lists together —
+        # Verifies #35: each call advances both lists together —
         # the nth call always returns the nth pair, never mixing pairs.
         rhythms = ['h', 'q', 'e']
         indexes = [1.0, 2.0, 3.0]
@@ -157,7 +157,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertAlmostEqual(results[2][keys.index], 3.0)
 
     def test_mapping_stream_wraps_in_sequence_mode(self):
-        # After the last pair, the stream wraps back to the first pair.
+        # Verifies #35: after the last pair, the stream wraps back to the first.
         rhythms = ['h', 'q']
         indexes = [1.0, 2.0]
         stream = Itemstream(
@@ -173,8 +173,8 @@ class TestItemstreams(unittest.TestCase):
         self.assertAlmostEqual(wrapped[keys.index], 1.0)
 
     def test_mapping_stream_shorter_list_wraps_independently(self):
-        # When lists have different lengths, the shorter one wraps to fill
-        # the longer one's length (Itemstream constructor pads with wrap).
+        # Verifies #35: when lists have different lengths, the shorter one
+        # wraps to fill the longer one's length (constructor pads with wrap).
         rhythms = ['h', 'q', 'e', 'w']   # length 4
         indexes = [1.0, 2.0]              # length 2 — wraps: 1.0, 2.0, 1.0, 2.0
         stream = Itemstream(
@@ -186,9 +186,10 @@ class TestItemstreams(unittest.TestCase):
         self.assertEqual([r[keys.index] for r in results], [1.0, 2.0, 1.0, 2.0])
 
     def test_mapping_stream_in_post_process_sets_pfields(self):
-        # The dominant real-world pattern: a tuple stream lives in context
-        # and a post_process reads from it to set note.rhythm and a custom pfield.
-        # This is the core of every index-based granular synthesis piece.
+        # Verifies #29, #35: the dominant real-world pattern — a tuple stream
+        # in context, read by a post_process to set note.rhythm and a custom
+        # pfield. Proves mapping streams and stateful post_processes work
+        # together end-to-end.
         rhythms = ['h', 'q', 'e']
         indexes = [0.5, 1.5, 2.5]
         tempo = 120
@@ -227,14 +228,14 @@ class TestItemstreams(unittest.TestCase):
     # ------------------------------------------------------------------ #
 
     def test_random_streammode_values_come_from_defined_set(self):
-        # random mode returns values drawn from the stream's value list.
+        # Verifies #31: random mode only draws from the defined value set.
         allowed = {'a', 'b', 'c', 'd'}
         stream = Itemstream(list(allowed), streammode=streammodes.random)
         for _ in range(40):
             self.assertIn(stream.get_next_value(), allowed)
 
     def test_random_streammode_allows_value_repetition(self):
-        # Unlike heap, random mode can return the same value on consecutive calls.
+        # Verifies #31: unlike heap, random mode allows consecutive repeats.
         # With a 2-item list and 20 draws, repetition is statistically certain.
         stream = Itemstream(['x', 'y'], streammode=streammodes.random, seed=42)
         draws = [stream.get_next_value() for _ in range(20)]
@@ -248,7 +249,7 @@ class TestItemstreams(unittest.TestCase):
     # ------------------------------------------------------------------ #
 
     def test_heap_streammode_no_repeat_within_one_cycle(self):
-        # heap mode exhausts all values before repeating any.
+        # Verifies #31: heap mode exhausts all values before repeating any.
         # Over exactly N draws from an N-item stream, each value appears exactly once.
         values = ['a', 'b', 'c', 'd', 'e']
         stream = Itemstream(values, streammode=streammodes.heap, seed=42)
@@ -256,7 +257,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertEqual(sorted(draws), sorted(values))
 
     def test_heap_streammode_refills_after_exhaustion(self):
-        # After all N values are drawn, the heap refills and a second cycle begins.
+        # Verifies #31: after all N values are drawn, the heap refills.
         # Both cycles contain all N values in (potentially different) random order.
         values = ['a', 'b', 'c']
         stream = Itemstream(values, streammode=streammodes.heap, seed=42)
@@ -270,7 +271,7 @@ class TestItemstreams(unittest.TestCase):
     # ------------------------------------------------------------------ #
 
     def test_seed_param_produces_same_heap_sequence(self):
-        # Two Itemstreams with the same seed and same values produce identical sequences.
+        # Verifies #31: same seed → identical heap sequence (reproducibility).
         values = ['a', 'b', 'c', 'd', 'e', 'f']
         s1 = Itemstream(values, streammode=streammodes.heap, seed=42)
         s2 = Itemstream(values, streammode=streammodes.heap, seed=42)
@@ -279,7 +280,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertEqual(draws_1, draws_2)
 
     def test_seed_param_produces_same_random_sequence(self):
-        # Same guarantee applies to random mode: same seed → same sequence.
+        # Verifies #31: same seed → identical random sequence (reproducibility).
         values = ['a', 'b', 'c', 'd']
         s1 = Itemstream(values, streammode=streammodes.random, seed=99)
         s2 = Itemstream(values, streammode=streammodes.random, seed=99)
@@ -288,8 +289,7 @@ class TestItemstreams(unittest.TestCase):
         self.assertEqual(draws_1, draws_2)
 
     def test_different_seeds_produce_different_sequences(self):
-        # Two streams with different seeds should (with high probability) produce
-        # different orderings over 3 heap cycles.
+        # Verifies #31: different seeds produce different orderings.
         values = ['a', 'b', 'c', 'd', 'e', 'f']
         s1 = Itemstream(values, streammode=streammodes.heap, seed=1)
         s2 = Itemstream(values, streammode=streammodes.heap, seed=9999)

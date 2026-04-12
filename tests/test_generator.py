@@ -90,6 +90,9 @@ class TestGenerators(unittest.TestCase):
         self.assertTrue(len(score_string.split('\n')) == 23)
 
     def test_callables_postprocesses(self):
+        # Verifies #29: a post_process callable receives the note, reads from
+        # context['tuplestream'] and context['indexstream'] to set rhythm and
+        # a custom pfield. Proves stateful context dict works end-to-end.
         rhythms = 'h h w h h h'.split()
         indexes = [.769, 1.95, 3.175, 5.54, 6.67, 8.0]
         tuplestream = Itemstream(mapping_keys=[keys.rhythm, keys.index], mapping_lists=[rhythms, indexes])
@@ -453,7 +456,9 @@ class TestGenerators(unittest.TestCase):
     # ------------------------------------------------------------------ #
 
     def test_child_inherits_parent_time_limit(self):
-        # Child with no time_limit set should inherit parent's time_limit
+        # Verifies #27, #30: child with no time_limit inherits parent's.
+        # All child notes fall within parent's time_limit, confirming the
+        # "defaults not constraints" semantics and that score_dur is bounded.
         parent = NoteGenerator(streams=OrderedDict([
             (keys.instrument, Itemstream([1])),
             (keys.duration, Itemstream([.5])),
@@ -503,7 +508,8 @@ class TestGenerators(unittest.TestCase):
         self.assertIn(3.0, start_times)
 
     def test_child_notes_merged_and_sorted(self):
-        # Notes from parent and child should be sorted by start_time
+        # Verifies #30: notes from parent and child are merged and sorted by
+        # start_time, confirming score_dur reflects the full output.
         parent = NoteGenerator(streams=OrderedDict([
             (keys.instrument, Itemstream([1])),
             (keys.duration, Itemstream([.5])),
@@ -524,9 +530,9 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(start_times, sorted(start_times))
 
     def test_child_inherits_parent_note_limit(self):
-        # Child with no note_limit should inherit parent's note_limit.
+        # Verifies #27: child with no note_limit inherits parent's note_limit.
         # Parent generates 3 notes; child inherits note_limit=3 and also
-        # generates 3, giving 6 total.
+        # generates 3, giving 6 total. Confirms "defaults" inheritance.
         parent = NoteGenerator(streams=OrderedDict([
             (keys.instrument, Itemstream([1])),
             (keys.duration, Itemstream([.5])),
@@ -668,8 +674,8 @@ class TestGenerators(unittest.TestCase):
     #   [2] = duration           [5] = pan  ...
 
     def test_rest_produces_frequency_zero(self):
-        # 'r' in a pitch stream resolves to frequency 0.
-        # The amplitude stream is unaffected — only frequency changes.
+        # Verifies #33: 'r' in a pitch stream resolves to frequency 0,
+        # confirming rest handling in the pitch → frequency conversion.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
                .with_pitches(Itemstream(['c4', 'r', 'e4'], notetype=notetypes.pitch,
@@ -683,8 +689,9 @@ class TestGenerators(unittest.TestCase):
         self.assertGreater(freqs[2], 0)   # e4 → non-zero freq
 
     def test_rest_zeros_amplitude(self):
-        # 'r' in a pitch stream sets frequency to 0 AND zeros amplitude,
-        # producing a silent note regardless of instrument definition (#40).
+        # Verifies #33, #40: 'r' sets frequency to 0 AND zeros amplitude,
+        # producing a silent note. Amplitude returns to normal on the next
+        # non-rest note, proving the zeroing is per-note, not sticky.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
                .with_pitches(Itemstream(['c4', 'r', 'e4'], notetype=notetypes.pitch,
@@ -699,8 +706,8 @@ class TestGenerators(unittest.TestCase):
         self.assertAlmostEqual(amps[2], 0.75)  # e4 — normal again
 
     def test_octave_persistence_bare_note_inherits_previous_octave(self):
-        # When a pitch name has no octave digit, it inherits the octave
-        # from the previous pitch in the stream.
+        # Verifies #33: when a pitch name has no octave digit, it inherits
+        # the octave from the previous pitch in the stream.
         # 'c4 d e' → c4, d4, e4 (d and e inherit octave 4 from c4)
         stream = Itemstream(['c4', 'd', 'e'], notetype=notetypes.pitch,
                             streammode=streammodes.sequence)
@@ -717,7 +724,7 @@ class TestGenerators(unittest.TestCase):
         self.assertAlmostEqual(e4_freq, stream_explicit.get_next_value())
 
     def test_octave_persistence_updates_when_new_octave_specified(self):
-        # A new octave digit resets the persistent octave for subsequent pitches.
+        # Verifies #33: a new octave digit resets the persistent octave.
         # 'c4 d c5 e' → c4, d4, c5, e5
         stream = Itemstream(['c4', 'd', 'c5', 'e'], notetype=notetypes.pitch,
                             streammode=streammodes.sequence)
@@ -731,8 +738,8 @@ class TestGenerators(unittest.TestCase):
             self.assertAlmostEqual(f, e)
 
     def test_octave_does_not_persist_across_separate_streams(self):
-        # Octave state is per-stream — a new Itemstream always starts
-        # with octave 0 (no inherited octave from a previous stream).
+        # Verifies #33: octave state is per-stream. A new Itemstream starts
+        # fresh — no inherited octave from a previous stream.
         stream1 = Itemstream(['c4'], notetype=notetypes.pitch, streammode=streammodes.sequence)
         stream2 = Itemstream(['d'], notetype=notetypes.pitch, streammode=streammodes.sequence)
 
@@ -746,7 +753,7 @@ class TestGenerators(unittest.TestCase):
         self.assertNotAlmostEqual(d_no_octave, d4_freq)
 
     def test_chord_with_rest_in_same_stream(self):
-        # A pitch stream can contain chords (nested lists) and rests side by side.
+        # Verifies #33: chords and rests coexist in the same pitch stream.
         # Chord: 3 simultaneous notes. Rest: 1 note with frequency 0.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -785,7 +792,7 @@ class TestGenerators(unittest.TestCase):
     #   [7] = percent
 
     def test_lambda_on_pan_produces_constant_return_value(self):
-        # A lambda assigned to pan is called once per note.
+        # Verifies #32: a lambda on pan (non-duration field) is called per note.
         # The return value appears at position [5] in the score line.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -798,7 +805,7 @@ class TestGenerators(unittest.TestCase):
             self.assertAlmostEqual(float(note.split()[5]), 72.0)
 
     def test_lambda_on_amplitude_produces_constant_return_value(self):
-        # A lambda assigned to amplitude is called once per note.
+        # Verifies #32: a lambda on amplitude (non-duration field) works.
         # The return value appears at position [3] in the score line.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -811,7 +818,7 @@ class TestGenerators(unittest.TestCase):
             self.assertAlmostEqual(float(note.split()[3]), 0.25)
 
     def test_lambda_on_percent_produces_constant_return_value(self):
-        # A lambda assigned to percent is called once per note.
+        # Verifies #32: a lambda on percent (non-duration field) works.
         # The return value appears at position [7] in the score line.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -824,9 +831,9 @@ class TestGenerators(unittest.TestCase):
             self.assertAlmostEqual(float(note.split()[7]), 0.99)
 
     def test_lambda_on_pan_can_read_note_rhythm(self):
-        # Lambdas receive the note object after rhythm is set, so they can
-        # reference note.rhythm to compute a value. This is the pattern used
-        # in csound-pieces for tempo-aware pfield values.
+        # Verifies #32: lambdas receive the note after rhythm is set, so they
+        # can reference note.rhythm — the pattern used in csound-pieces for
+        # tempo-aware pfield values.
         # At 120bpm, q = 0.5s.  The lambda returns rhythm * 100 = 50.0.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -839,7 +846,7 @@ class TestGenerators(unittest.TestCase):
             self.assertAlmostEqual(float(note.split()[5]), 50.0)
 
     def test_lambda_produces_different_values_per_note(self):
-        # Lambdas are called fresh for each note, so they can vary per note.
+        # Verifies #32: lambdas are called fresh per note, producing distinct values.
         counter = {'n': 0}
 
         def incrementing_pan(note):
@@ -868,7 +875,7 @@ class TestGenerators(unittest.TestCase):
     #   [5] = pan  ...
 
     def test_with_instr_sets_instrument_number_in_score(self):
-        # with_instr(n) sets p1 — the Csound instrument number.
+        # Verifies #34: with_instr(n) sets p1 (Csound instrument number).
         # In the score string, instrument is embedded in split()[0] as 'i<n>'.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -881,7 +888,7 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(instr, 7)
 
     def test_with_index_value_appears_in_score(self):
-        # with_index(n) adds an index stream, but index must also be in pfields
+        # Verifies #34: with_index(n) adds an index stream. Index must also be in pfields
         # to appear in the score — this mirrors the real usage pattern where
         # setup_index_params or manual pfields.append() is required.
         gen = (Line()
@@ -897,7 +904,7 @@ class TestGenerators(unittest.TestCase):
         self.assertAlmostEqual(index_val, 3.5)
 
     def test_path_notetype_returns_quoted_string_unchanged(self):
-        # notetypes.path wraps the string in double-quotes and passes it through
+        # Verifies #34: notetypes.path wraps the string in double-quotes, passes through
         # without any pitch or rhythm conversion.
         stream = Itemstream(['/samples/kick.wav'], notetype=notetypes.path)
         val = stream.get_next_value()
@@ -912,7 +919,7 @@ class TestGenerators(unittest.TestCase):
         self.assertIn('/samples/snare.wav', val)
 
     def test_custom_pfield_appended_to_pfields_appears_in_score(self):
-        # A custom stream added via set_stream() only appears in the score
+        # Verifies #34: a custom stream via set_stream() only appears in the score
         # when its key is also appended to generator.pfields.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -943,7 +950,7 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(len(fields), default_field_count + 1)
 
     def test_pfields_append_pattern_used_in_csound_pieces(self):
-        # Real-world pattern: container.pfields += [keys.index, 'orig_rhythm', 'inst_file']
+        # Verifies #34: real-world pattern pfields += [keys.index, 'fade_in'].
         # Each appended key must also have a stream, otherwise it emits empty string.
         gen = (Line()
                .with_rhythm(Itemstream(['q'], notetype=notetypes.rhythm))
@@ -960,7 +967,7 @@ class TestGenerators(unittest.TestCase):
         self.assertAlmostEqual(float(fields[-1]), 0.001)
 
     def test_generator_dur_limits_child_to_relative_duration(self):
-        # generator_dur sets a relative duration for a child generator.
+        # Verifies #36: generator_dur sets a relative duration for a child.
         # The child's effective time_limit becomes child.start_time + generator_dur.
         # At 120bpm, q = 0.5s.  Child starts at 2.0 with generator_dur=1.0,
         # so time_limit = 3.0.  Notes at 2.0 and 2.5 are within; 3.0 is not.
@@ -993,9 +1000,8 @@ class TestGenerators(unittest.TestCase):
         self.assertEqual(child_start_times, [2.0, 2.5])
 
     def test_generator_dur_start_time_is_absolute_not_offset_by_parent(self):
-        # When generator_dur > 0, the child's start_time is treated as absolute
-        # and is NOT offset by the parent's start_time.  This is different from
-        # the normal child behavior where start_time is relative to the parent.
+        # Verifies #36: when generator_dur > 0, start_time is absolute — NOT
+        # offset by parent's start_time. Different from normal child behavior.
         parent = NoteGenerator(
             streams=OrderedDict([
                 (keys.instrument, Itemstream([1])),
@@ -1026,8 +1032,8 @@ class TestGenerators(unittest.TestCase):
         self.assertNotIn(7.0, child_start_times)
 
     def test_generator_dur_vs_time_limit_distinction(self):
-        # time_limit is an absolute clock position; generator_dur is relative
-        # to the child's own start_time.
+        # Verifies #36: time_limit is absolute; generator_dur is relative to
+        # the child's start_time. Both produce the same output when calibrated.
         #
         # A child at start_time=2.0 with generator_dur=1.0 stops at 3.0.
         # A child at start_time=0.0 with time_limit=3.0 also stops at 3.0.
