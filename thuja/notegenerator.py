@@ -629,11 +629,16 @@ class NoteGeneratorThread(threading.Thread):
         return self.cs.scoreTime()
 
     def _init_cursors(self):
-        """Flatten the generator tree into a cursor list and build the heap."""
+        """Flatten the generator tree into a cursor list and build the heap.
+
+        Calls reset_cursor() on each generator so streaming starts fresh
+        even if generate_notes() was called earlier (which exhausts
+        note_count and cur_time).
+        """
         self._cursors = []
         self._collect_cursors(self.g, parent=None)
         for c in self._cursors:
-            c.cur_time = c.start_time
+            c.reset_cursor()
         self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
         heapq.heapify(self._cursor_heap)
 
