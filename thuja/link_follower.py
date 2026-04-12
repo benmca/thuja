@@ -38,6 +38,7 @@ class LinkFollower:
         self._bpm = None
         self._last_beat = None
         self._last_phase = None            # bar phase from carabiner (beat % quantum from Ableton's perspective)
+        self._bar_origin = None            # Link beat number on an Ableton downbeat (constant for session)
         self._last_beat_wall_time = None   # monotonic time when _last_beat was recorded
         self._sync_point = None
         self._buf = ''
@@ -183,21 +184,23 @@ class LinkFollower:
         quantum=1 → next beat; quantum=4 → next bar; quantum=8 → next 2-bar phrase.
         Defaults to self.quantum (set at construction, default 4).
 
-        Uses phase from carabiner to align with Ableton's actual bar structure.
-        bar_origin = _last_beat - _last_phase gives a Link beat number that
-        corresponds to an Ableton downbeat. All boundaries are multiples of
-        quantum from that origin, so they land on Ableton's grid regardless
-        of when the Link session started.
+        Uses _bar_origin (computed once at connect time from carabiner's phase
+        data) to align boundaries with Ableton's actual bar downbeats.
+        _bar_origin is constant for the session — it doesn't drift as
+        _last_beat updates.
 
         Without phase data, falls back to multiples of quantum from beat 0.
         """
         q = quantum if quantum is not None else self.quantum
         cb = self.current_beat(csound_time)
 
-        if self._last_phase is not None and self._last_beat is not None:
-            # bar_origin is a Link beat number on Ableton's downbeat grid.
-            # Since phase = beat % session_quantum, bar_origin is always an
-            # integer multiple of the session quantum — works for any q.
+        if self._bar_origin is not None:
+            dist = cb - self._bar_origin
+            periods = math.floor(dist / q)
+            return self._bar_origin + (periods + 1) * q
+        elif self._last_phase is not None and self._last_beat is not None:
+            # Legacy format: phase came from the same status line as beat,
+            # so bar_origin = _last_beat - _last_phase is consistent.
             bar_origin = self._last_beat - self._last_phase
             dist = cb - bar_origin
             periods = math.floor(dist / q)
@@ -329,12 +332,9 @@ class LinkFollower:
         if beat_m and phase_m:
             beat_at_0 = float(beat_m.group(1))
             phase_at_0 = float(phase_m.group(1))
-            # bar_origin: a Link beat that falls on an Ableton downbeat.
-            # Downbeats repeat every `quantum` beats from here.
-            bar_origin = beat_at_0 - phase_at_0
-            # Derive _last_phase so next_boundary can use its standard formula.
-            if self._last_beat is not None:
-                self._last_phase = (self._last_beat - bar_origin) % q
+            # bar_origin: a Link beat on an Ableton downbeat. Constant for
+            # the session — doesn't drift as _last_beat updates.
+            self._bar_origin = beat_at_0 - phase_at_0
 
     def _recv_line_blocking(self):
         """Read one newline-terminated line from the socket, blocking."""
