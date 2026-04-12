@@ -226,6 +226,7 @@ class TestStreamingTempoChange(unittest.TestCase):
         lf.connected = True
         lf.poll.return_value = 80.0
         lf.current_beat.return_value = 0.0
+        lf.csound_time_for_beat.return_value = 1.5
         cs_mock = MagicMock()
         cs_mock.scoreTime.return_value = 1.0
         cpt_mock = MagicMock()
@@ -243,6 +244,8 @@ class TestStreamingTempoChange(unittest.TestCase):
         lf = MagicMock()
         lf.connected = True
         lf.poll.return_value = 80.0
+        lf.current_beat.return_value = 0.0
+        lf.csound_time_for_beat.return_value = 0.75
         cs_mock = MagicMock()
         cs_mock.scoreTime.return_value = 0.0
         cpt_mock = MagicMock()
@@ -316,6 +319,190 @@ class TestStreamingGen(unittest.TestCase):
         lf.current_beat.return_value = 8.0   # target reached
         t._check_pending_swap()
         self.assertIsNone(t._pending_swap)   # fired and cleared
+
+
+# ---------------------------------------------------------------------------
+# Streaming with child generators
+# ---------------------------------------------------------------------------
+
+def _parent_with_child(parent_note_limit=0, child_note_limit=0,
+                       parent_time_limit=10.0, child_time_limit=0,
+                       child_start_time=0.0, child_generator_dur=0):
+    """Create a parent generator with one child, both using quarter notes at 120bpm."""
+    parent = _simple_generator(note_limit=parent_note_limit, tempo=120)
+    parent.time_limit = parent_time_limit
+    child = NoteGenerator(
+        streams=OrderedDict([
+            (keys.instrument, Itemstream([2])),
+            (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm, tempo=120)),
+            (keys.duration, Itemstream([0.2])),
+            (keys.amplitude, Itemstream([0.5])),
+            (keys.frequency, Itemstream([880])),
+        ]),
+        note_limit=child_note_limit,
+    )
+    child.pfields = [keys.instrument, keys.start_time, keys.duration, keys.amplitude, keys.frequency]
+    child.time_limit = child_time_limit
+    child.start_time = child_start_time
+    child.generator_dur = child_generator_dur
+    parent.add_generator(child)
+    return parent, child
+
+
+class TestStreamingChildBasic(unittest.TestCase):
+
+    def test_parent_and_child_interleaved(self):
+        parent, child = _parent_with_child(parent_time_limit=3.0)
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(3.0)
+        notes = list(t._buffer)
+        self.assertGreater(len(notes), 0)
+        instruments = set()
+        for _, note_str in notes:
+            instruments.add(note_str.split()[0])
+        self.assertIn('i1', instruments)
+        self.assertIn('i2', instruments)
+
+    def test_notes_in_start_time_order(self):
+        parent, child = _parent_with_child(parent_time_limit=3.0)
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(3.0)
+        times = [start for start, _ in t._buffer]
+        self.assertEqual(times, sorted(times))
+
+    def test_child_offset_start_time(self):
+        parent, child = _parent_with_child(
+            parent_time_limit=5.0, child_start_time=2.0)
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(5.0)
+        child_starts = [start for start, n in t._buffer if n.startswith('i2')]
+        parent_starts = [start for start, n in t._buffer if n.startswith('i1')]
+        self.assertGreater(len(child_starts), 0)
+        self.assertGreater(len(parent_starts), 0)
+        self.assertGreaterEqual(child_starts[0], 2.0 - 1e-9)
+        self.assertTrue(any(s < 2.0 for s in parent_starts))
+
+    def test_child_inherits_parent_time_limit(self):
+        parent, child = _parent_with_child(parent_time_limit=2.0)
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(5.0)
+        child_starts = [start for start, n in t._buffer if n.startswith('i2')]
+        if child_starts:
+            self.assertLess(max(child_starts), 2.0 + 1e-9)
+
+    def test_child_with_generator_dur(self):
+        parent, child = _parent_with_child(
+            parent_time_limit=10.0, child_start_time=1.0, child_generator_dur=2.0)
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(10.0)
+        child_starts = [start for start, n in t._buffer if n.startswith('i2')]
+        self.assertGreater(len(child_starts), 0)
+        # generator_dur=2 means time_limit = start_time + 2 = 3.0
+        self.assertLess(max(child_starts), 3.0 + 1e-9)
+
+    def test_streaming_matches_batch(self):
+        """Streaming output should match batch generate_notes() for the same tree."""
+        parent_batch, child_batch = _parent_with_child(parent_time_limit=4.0)
+        parent_batch.generate_notes()
+        batch_notes = sorted(parent_batch.notes, key=lambda n: float(n.split()[1]))
+
+        parent_stream, child_stream = _parent_with_child(parent_time_limit=4.0)
+        t, _ = _make_streaming_thread(parent_stream)
+        t._fill_buffer(4.0)
+        stream_notes = [n for _, n in t._buffer]
+
+        self.assertEqual(len(batch_notes), len(stream_notes))
+        for b, s in zip(batch_notes, stream_notes):
+            b_fields = b.strip().split()
+            s_fields = s.strip().split()
+            self.assertEqual(b_fields[0], s_fields[0])
+            self.assertAlmostEqual(float(b_fields[1]), float(s_fields[1]), places=5)
+
+
+class TestStreamingChildNested(unittest.TestCase):
+
+    def _make_grandchild(self, start_time=0.0):
+        gc = NoteGenerator(
+            streams=OrderedDict([
+                (keys.instrument, Itemstream([3])),
+                (keys.rhythm, Itemstream(['q'], notetype=notetypes.rhythm, tempo=120)),
+                (keys.duration, Itemstream([0.3])),
+                (keys.amplitude, Itemstream([0.25])),
+                (keys.frequency, Itemstream([1760])),
+            ]),
+            note_limit=0,
+        )
+        gc.pfields = [keys.instrument, keys.start_time, keys.duration, keys.amplitude, keys.frequency]
+        gc.time_limit = 0
+        gc.start_time = start_time
+        return gc
+
+    def test_three_level_nesting(self):
+        """parent -> child -> grandchild, each a different instrument."""
+        parent, child = _parent_with_child(
+            parent_time_limit=5.0, child_start_time=0.5)
+        child.add_generator(self._make_grandchild(start_time=1.0))
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(5.0)
+        instruments = set(n.split()[0] for _, n in t._buffer)
+        self.assertIn('i1', instruments)
+        self.assertIn('i2', instruments)
+        self.assertIn('i3', instruments)
+
+    def test_three_level_start_time_chaining(self):
+        """Grandchild start_time accumulates: parent(0) + child(1) + grandchild(0.5) = 1.5."""
+        parent, child = _parent_with_child(
+            parent_time_limit=5.0, child_start_time=1.0)
+        child.add_generator(self._make_grandchild(start_time=0.5))
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(5.0)
+        gc_starts = [start for start, n in t._buffer if n.startswith('i3')]
+        self.assertGreater(len(gc_starts), 0)
+        self.assertAlmostEqual(gc_starts[0], 1.5, places=5)
+
+    def test_three_level_limit_inheritance(self):
+        """Grandchild with no time_limit inherits from child, which inherits from parent."""
+        parent, child = _parent_with_child(parent_time_limit=3.0)
+        child.add_generator(self._make_grandchild(start_time=0.0))
+        t, _ = _make_streaming_thread(parent)
+        t._fill_buffer(10.0)
+        gc_starts = [start for start, n in t._buffer if n.startswith('i3')]
+        if gc_starts:
+            self.assertLess(max(gc_starts), 3.0 + 1e-9)
+
+
+class TestStreamingChildReset(unittest.TestCase):
+
+    def test_gen_resets_all_cursors(self):
+        parent, child = _parent_with_child(parent_time_limit=10.0)
+        t, _ = _make_streaming_thread(parent, current_score_time=0.0)
+        t._fill_buffer(3.0)
+        self.assertGreater(len(t._buffer), 0)
+        old_parent_time = parent.cur_time
+        old_child_time = child.cur_time
+        t.gen()
+        self.assertLess(parent.cur_time, old_parent_time)
+        self.assertLess(child.cur_time, old_child_time)
+
+    def test_gen_flushes_future_notes(self):
+        parent, child = _parent_with_child(parent_time_limit=10.0)
+        # score_time=1.0: notes before 1.0 are "past" (kept), notes after are stale (flushed)
+        t, _ = _make_streaming_thread(parent, current_score_time=1.0)
+        t._fill_buffer(5.0)
+        total_before = len(t._buffer)
+        future_before = sum(1 for start, _ in t._buffer if start > 1.0)
+        self.assertGreater(future_before, 0)
+        t.gen()
+        future_after = sum(1 for start, _ in t._buffer if start > 1.0)
+        self.assertEqual(future_after, 0)
+
+    def test_fill_after_reset_produces_notes(self):
+        parent, child = _parent_with_child(parent_time_limit=10.0)
+        t, _ = _make_streaming_thread(parent, current_score_time=0.0)
+        t._fill_buffer(2.0)
+        t.gen()
+        t._fill_buffer(2.0)
+        self.assertGreater(len(t._buffer), 0)
 
 
 if __name__ == '__main__':

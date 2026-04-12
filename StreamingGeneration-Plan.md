@@ -65,9 +65,9 @@ No notes-list swap needed. The `_pending_swap` mechanism becomes a pending `rese
 
 Currently child generators run as a separate pass *after* the main loop. In streaming mode their notes must be interleaved into the same buffer in start-time order.
 
-**Phase 1**: streaming mode only for generators with no children (covers all live-coding use cases in csound-pieces). Generators with children fall back to the batch path automatically.
+**Phase 1** *(complete)*: streaming mode only for generators with no children (covers all live-coding use cases in csound-pieces). Generators with children fall back to the batch path automatically.
 
-**Phase 2**: each child gets its own `generate_next_note()` cursor; the buffer merge-sorts from all active cursors.
+**Phase 2** *(complete — 2026-04-11)*: `_fill_buffer()` uses a min-heap of cursors (parent + all children at any depth). `_init_cursors()` does a recursive tree walk applying limit inheritance and start_time offsets. See `StreamingChildren-Plan.md` for the full design.
 
 ---
 

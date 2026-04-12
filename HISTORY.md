@@ -4,6 +4,30 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-11 — Streaming child generators + sync accuracy tests
+
+### Streaming child generators (Phase 2 of StreamingGeneration-Plan)
+
+`_fill_buffer()` now pulls from a min-heap of cursors — parent plus all children at any nesting depth — interleaving notes by start time. `_init_cursors()` does a recursive depth-first walk of the generator tree, applying the same limit-inheritance and start_time-offset logic as batch `generate_notes()`. `gen()`, `_check_pending_swap()`, and `_poll_link()` all reset/snap the full cursor tree, not just the root generator.
+
+Supports arbitrary nesting depth. `csound-pieces` uses at most 2 levels; a 3-level nesting test verifies start_time chaining and limit inheritance cascade.
+
+### Bug fix: streaming after generate_notes()
+
+`_init_cursors()` now calls `reset_cursor()` on each generator (resetting both `cur_time` and `note_count`) instead of just setting `cur_time = start_time`. Without this, calling `generate_notes()` before `kickoff(streaming=True)` exhausted `note_count`, causing `generate_next_note()` to return `None` immediately — no sound. Found while testing `csound-pieces/thuja-ep/olallan/jams4.py`.
+
+### Issue #27 resolution (parent/child limit semantics)
+
+Documented the existing behavior: parent `time_limit` and `note_limit` are *defaults*, not hard constraints. If a child sets its own limits, the child's values win — even if they exceed the parent's. This is replicated identically in both the batch path (`generate_notes()`) and the streaming path (`_collect_cursors()`). No code change; comment clarified in both locations.
+
+### Sync accuracy tests
+
+19 tests for `latency_offset_secs` (7), `establish_sync_via_probe` (6), and `probe_sync` (6). Moved from Outstanding Gaps to Already Covered in `tests/todos.md`.
+
+### Test count: 167 (was 136). All passing.
+
+---
+
 ## 2026-04-11 — Link sync accuracy: active-probe anchor + latency offset
 
 ### Context

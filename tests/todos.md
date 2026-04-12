@@ -4,7 +4,7 @@ This document tracks outstanding test coverage gaps. Items are removed as tests 
 
 **NOTE:** Priorities reflect real-world usage frequency across ~62 files in `../csound-pieces/thuja-ep/`.
 
-Last updated: 2026-04-11 (link sync accuracy)
+Last updated: 2026-04-11 (sync accuracy tests)
 
 ---
 
@@ -127,14 +127,15 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 - `NoteGeneratorThread._check_pending_swap()` — fires swap at target_beat; doesn't fire early
 - `target_beat` survives tempo change (stored as Link beat number, not Csound time)
 
----
+**feature/link-follower (sync accuracy — 2026-04-11):**
+- `LinkFollower.establish_sync_via_probe()` — anchors from fresh status; drains stale pre-send; prefers latest post-recv; returns RTT; uses csound_time_fn
+- `LinkFollower.probe_sync()` — returns 6-tuple; delta = model - probe; drain counts correct; sends status request; RTT non-negative
+- `LinkFollower.latency_offset_secs` — identity at offset=0; current_beat shifted forward; csound_time_for_beat shifted earlier; round-trip with offset; live-mutable; constructor default 0; constructor accepts offset
 
-## Outstanding Gaps
-
-**feature/link-follower (sync accuracy session 2026-04-11):**
-- `LinkFollower.establish_sync_via_probe()` — sends fresh status, anchors to reply; race-hardens against pushed pushes by preferring latest post-recv line
-- `LinkFollower.probe_sync()` — round-trip measurement + drain counts; reports (model, probe, delta, drained_before, drained_after, rtt)
-- `LinkFollower.latency_offset_secs` — round-trip identity when offset=0; `current_beat(t)` shifted by +offset × bpm/60 beats; `csound_time_for_beat(b)` shifted by -offset seconds; live-mutable mid-run
+**feature/streaming-children (2026-04-11):**
+- Streaming parent + child: interleaved notes; notes in start-time order; child offset start_time honored; parent time_limit inherited; generator_dur respected; streaming matches batch output
+- 3-level nesting: all instruments appear; start_time chains correctly across levels; limit inheritance cascades
+- Cursor reset: gen() resets all cursors; future notes flushed; fill after reset produces notes
 
 ---
 
