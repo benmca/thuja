@@ -40,13 +40,12 @@ except Exception as e:
 
 log("Building generator...")
 
-pitches = Itemstream('a2 b c3 e a2 r e2 f r b'.split() + [['e', 'b']] + [['e', 'b']]
-                     + 'a2 c3 c c d d d e r e'.split() + [['e', 'b']] + [['e', 'b']],
+pitches = Itemstream([['e3', 'b']],
     streammode=streammodes.sequence,
     notetype=notetypes.pitch
 )
 
-rhythms = Itemstream('s s s s e e'.split(),
+rhythms = Itemstream('q'.split(),
                      streammode=streammodes.sequence,
                      tempo=120,
                      notetype=notetypes.rhythm)
