@@ -139,7 +139,7 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 
 **feature/multi-generator-tempo-ratio (2026-04-11):**
 - `tempo_ratio`: default 1.0; applied on tempo update; composes through hierarchy; identity at 1.0
-- Multi-generator thread: accepts single or list; multiple generators interleaved; add_generator mid-run; remove_generator; selective gen() resets only target; tempo update applies to all with ratios
+- Multi-generator thread: accepts single or list; multiple generators interleaved; add_generator mid-run (immediate, quantize=beat, quantize=bar); remove_generator; selective gen() resets only target; tempo update applies to all with ratios
 
 ---
 

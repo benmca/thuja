@@ -15,13 +15,13 @@ Added `tempo_ratio` attribute to `NoteGenerator` (default `1.0`). When `_set_gen
 `NoteGeneratorThread` now accepts either a single generator or a list. Internally stores `_generators` (list of roots). Each root is an independent tree with independent lifecycle.
 
 New methods:
-- `add_generator(g)` — adds a root generator mid-performance, rebuilds cursor heap
+- `add_generator(g, quantize=None)` — adds a root generator mid-performance. `quantize` controls when it starts: `None` = current score time (immediate), `'beat'` or `1` = next beat, `'bar'` or `4` = next bar, any integer N = next N-beat boundary. Without a LinkFollower, quantize is ignored. Rebuilds cursor heap.
 - `remove_generator(g)` — removes a root, buffered notes still dispatch
 - `gen(generator=g)` — selective reset: only resets the specified generator's cursor tree
 
 `_init_cursors`, `_update_tempos`, and `_rebuild_cursors` iterate over all roots. `self.g` preserved as reference to the first generator for backward compatibility.
 
-### Test count: 178 (was 167). All passing.
+### Test count: 181 (was 167). All passing.
 
 ---
 

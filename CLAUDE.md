@@ -60,16 +60,21 @@ The fundamental pattern in Thuja is a **generator loop** that iterates through I
 **thuja/notegenerator.py**:
 - `NoteGenerator`: Base class managing note generation lifecycle
 - `Line`: Convenience subclass with fluent API (`.with_rhythm()`, `.with_pitches()`, etc.)
-- Supports nested child generators that inherit parent timing constraints
+- Supports nested child generators that inherit parent timing constraints (defaults, not hard constraints — see #27)
 - `post_processes`: List of callables invoked after each note's pfields are populated
 - Lambda support: Any stream can be a callable instead of an Itemstream (receives note object, called after post_processes)
 - `pfields`: Ordered list defining which p-fields each note contains
 - `streams`: OrderedDict mapping pfield names to Itemstreams or callables
+- `tempo_ratio`: Multiplier applied when Link updates tempos (default 1.0). Composes through hierarchy: child at 0.5 gets half the Link BPM.
 - Key timing attributes:
   - `start_time`: When this generator starts
   - `note_limit`: Max notes to generate
   - `time_limit`: Absolute time limit
   - `generator_dur`: Relative duration (for child generators with offset start times)
+- `NoteGeneratorThread`: Accepts a single generator or a list of generators. Each root is an independent voice tree.
+  - `add_generator(g, quantize=None)`: Add a voice mid-performance. `quantize='beat'`/`'bar'`/N snaps start to a Link boundary.
+  - `remove_generator(g)`: Remove a voice (buffered notes still play out).
+  - `gen(generator=g)`: Selective reset — only resets the specified generator's cursor tree.
 
 **thuja/event.py**:
 - `Event`: Represents a single note with its pfield dictionary
