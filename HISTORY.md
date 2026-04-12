@@ -12,6 +12,10 @@ This file tracks significant changes, decisions, and context behind work done on
 
 Supports arbitrary nesting depth. `csound-pieces` uses at most 2 levels; a 3-level nesting test verifies start_time chaining and limit inheritance cascade.
 
+### Bug fix: streaming after generate_notes()
+
+`_init_cursors()` now calls `reset_cursor()` on each generator (resetting both `cur_time` and `note_count`) instead of just setting `cur_time = start_time`. Without this, calling `generate_notes()` before `kickoff(streaming=True)` exhausted `note_count`, causing `generate_next_note()` to return `None` immediately — no sound. Found while testing `csound-pieces/thuja-ep/olallan/jams4.py`.
+
 ### Issue #27 resolution (parent/child limit semantics)
 
 Documented the existing behavior: parent `time_limit` and `note_limit` are *defaults*, not hard constraints. If a child sets its own limits, the child's values win — even if they exceed the parent's. This is replicated identically in both the batch path (`generate_notes()`) and the streaming path (`_collect_cursors()`). No code change; comment clarified in both locations.
