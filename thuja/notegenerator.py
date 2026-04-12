@@ -80,6 +80,7 @@ class NoteGenerator:
         self.post_processes = post_processes if post_processes is not None else []
 
         self.generators = []
+        self.tempo_ratio = 1.0
 
     def with_streams(self, streams):
         if isinstance(streams, OrderedDict):
@@ -517,7 +518,8 @@ class NoteGeneratorThread(threading.Thread):
 
     def __init__(self, g, cs, cpt, sleep_interval=.0001, link_follower=None, streaming=False,
                  lookahead_secs=2.0):
-        self.g = g
+        self._generators = [g] if not isinstance(g, list) else list(g)
+        self.g = self._generators[0]
         self.cs = cs
         self.cpt = cpt
         self.sleep_interval = sleep_interval
@@ -541,7 +543,8 @@ class NoteGeneratorThread(threading.Thread):
         cs = self.cs
         cpt = self.cpt
         sleep_interval = self.sleep_interval
-        g.thread_started = True
+        for gen in self._generators:
+            gen.thread_started = True
 
         arbitrary_score_time = 0
         while not self.stop_event.is_set():
@@ -594,10 +597,18 @@ class NoteGeneratorThread(threading.Thread):
 
         self.stop_event.clear()
 
-    def gen(self, quantize=None):
+    def gen(self, quantize=None, generator=None):
+        """Regenerate notes.
+
+        generator: if set, reset only this generator's cursor tree (selective).
+                   If None, reset all generators (current behavior).
+        """
         if self._streaming:
             if quantize is None or self.link_follower is None:
-                self._reset_all_cursors()
+                if generator is not None:
+                    self._reset_generator_cursors(generator)
+                else:
+                    self._reset_all_cursors()
                 self._flush_stale_buffer()
                 if self.link_follower is not None:
                     self._beat_snap_all_cursors()
@@ -625,22 +636,51 @@ class NoteGeneratorThread(threading.Thread):
                 self._pending_swap = _PendingSwap(notes=temp.notes, target_beat=target)
                 print("Swap queued at beat " + str(target))
 
+    def add_generator(self, generator):
+        """Add a new top-level generator to the thread.
+
+        Rebuilds the cursor heap so the new generator (and its children)
+        start producing notes on the next _fill_buffer() call.
+        """
+        self._generators.append(generator)
+        generator.thread_started = True
+        self._rebuild_cursors()
+        if self._streaming and self.link_follower is not None:
+            self._beat_snap_all_cursors()
+
+    def remove_generator(self, generator):
+        """Remove a top-level generator from the thread.
+
+        Notes already in the buffer still dispatch; no new notes are generated
+        from this generator or its children.
+        """
+        if generator in self._generators:
+            self._generators.remove(generator)
+            if generator is self.g and self._generators:
+                self.g = self._generators[0]
+            self._rebuild_cursors()
+
+    def _rebuild_cursors(self):
+        """Rebuild the flat cursor list and heap from all generator trees."""
+        self._cursors = []
+        for root in self._generators:
+            self._collect_cursors(root, parent=None)
+        for c in self._cursors:
+            c.reset_cursor()
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
     def _csound_time(self):
         return self.cs.scoreTime()
 
     def _init_cursors(self):
-        """Flatten the generator tree into a cursor list and build the heap.
+        """Flatten all generator trees into a cursor list and build the heap.
 
         Calls reset_cursor() on each generator so streaming starts fresh
         even if generate_notes() was called earlier (which exhausts
         note_count and cur_time).
         """
-        self._cursors = []
-        self._collect_cursors(self.g, parent=None)
-        for c in self._cursors:
-            c.reset_cursor()
-        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
-        heapq.heapify(self._cursor_heap)
+        self._rebuild_cursors()
 
     def _collect_cursors(self, generator, parent):
         """Recursively walk the tree, applying limit inheritance and start_time offsets.
@@ -669,6 +709,24 @@ class NoteGeneratorThread(threading.Thread):
             c.reset_cursor(reset_streams=reset_streams)
         self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
         heapq.heapify(self._cursor_heap)
+
+    def _reset_generator_cursors(self, generator):
+        """Reset cursors for a single generator tree without touching others."""
+        if not self._cursors:
+            self._init_cursors()
+        targets = set()
+        self._collect_tree_members(generator, targets)
+        for c in self._cursors:
+            if c in targets:
+                c.reset_cursor()
+        self._cursor_heap = [(c.cur_time, i, c) for i, c in enumerate(self._cursors)]
+        heapq.heapify(self._cursor_heap)
+
+    def _collect_tree_members(self, generator, result):
+        """Collect a generator and all its descendants into a set."""
+        result.add(generator)
+        for child in generator.generators:
+            self._collect_tree_members(child, result)
 
     def _fill_buffer(self, target_time):
         """Generate notes into the lookahead buffer up to target_time.
@@ -768,15 +826,18 @@ class NoteGeneratorThread(threading.Thread):
                     self._pending_swap = None
 
     def _update_tempos(self, bpm):
-        """Set tempo on all rhythm-notetype Itemstreams in generator and children."""
-        self._set_generator_tempos(self.g, bpm)
+        """Set tempo on all rhythm-notetype Itemstreams across all generators."""
+        for root in self._generators:
+            self._set_generator_tempos(root, bpm, 1.0)
 
-    def _set_generator_tempos(self, generator, bpm):
+    def _set_generator_tempos(self, generator, bpm, inherited_ratio):
+        effective_ratio = inherited_ratio * generator.tempo_ratio
+        effective_bpm = bpm * effective_ratio
         for stream in generator.streams.values():
             if isinstance(stream, Itemstream) and stream.notetype == notetypes.rhythm:
-                stream.tempo = bpm
+                stream.tempo = effective_bpm
         for child in generator.generators:
-            self._set_generator_tempos(child, bpm)
+            self._set_generator_tempos(child, bpm, effective_ratio)
 
 
 def kickoff(g, orc_file, scorestring="f1 0 513 10 1\ni99 0 3600 10\ne\n", device_string='dac',

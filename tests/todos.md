@@ -137,6 +137,10 @@ The heap bug fix (PR #38) ensures correct behavior, but no test verifies the bou
 - 3-level nesting: all instruments appear; start_time chains correctly across levels; limit inheritance cascades
 - Cursor reset: gen() resets all cursors; future notes flushed; fill after reset produces notes
 
+**feature/multi-generator-tempo-ratio (2026-04-11):**
+- `tempo_ratio`: default 1.0; applied on tempo update; composes through hierarchy; identity at 1.0
+- Multi-generator thread: accepts single or list; multiple generators interleaved; add_generator mid-run; remove_generator; selective gen() resets only target; tempo update applies to all with ratios
+
 ---
 
 ## Not Worth Testing Now

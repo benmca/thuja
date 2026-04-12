@@ -4,6 +4,27 @@ This file tracks significant changes, decisions, and context behind work done on
 
 ---
 
+## 2026-04-11 — Per-generator tempo ratio (#46) + multi-generator thread (#47)
+
+### Per-generator tempo ratio (#46)
+
+Added `tempo_ratio` attribute to `NoteGenerator` (default `1.0`). When `_set_generator_tempos` updates rhythm streams, it applies `bpm * effective_ratio` where the ratio composes through the hierarchy: if parent has ratio 1.0 and child has ratio 0.5, child gets `bpm * 0.5`. A grandchild with ratio 2.0 gets `bpm * 0.5 * 2.0 = bpm * 1.0`.
+
+### Multiple top-level generators (#47)
+
+`NoteGeneratorThread` now accepts either a single generator or a list. Internally stores `_generators` (list of roots). Each root is an independent tree with independent lifecycle.
+
+New methods:
+- `add_generator(g)` — adds a root generator mid-performance, rebuilds cursor heap
+- `remove_generator(g)` — removes a root, buffered notes still dispatch
+- `gen(generator=g)` — selective reset: only resets the specified generator's cursor tree
+
+`_init_cursors`, `_update_tempos`, and `_rebuild_cursors` iterate over all roots. `self.g` preserved as reference to the first generator for backward compatibility.
+
+### Test count: 178 (was 167). All passing.
+
+---
+
 ## 2026-04-11 — Streaming child generators + sync accuracy tests
 
 ### Streaming child generators (Phase 2 of StreamingGeneration-Plan)

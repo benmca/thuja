@@ -505,5 +505,174 @@ class TestStreamingChildReset(unittest.TestCase):
         self.assertGreater(len(t._buffer), 0)
 
 
+# ---------------------------------------------------------------------------
+# Tempo ratio (#46)
+# ---------------------------------------------------------------------------
+
+class TestTempoRatio(unittest.TestCase):
+
+    def test_default_ratio_is_one(self):
+        g = _simple_generator()
+        self.assertEqual(g.tempo_ratio, 1.0)
+
+    def test_ratio_applied_on_tempo_update(self):
+        parent = _simple_generator(note_limit=0, tempo=120)
+        parent.time_limit = 10.0
+        child = _simple_generator(note_limit=0, tempo=120)
+        child.time_limit = 10.0
+        child.tempo_ratio = 0.5
+        parent.add_generator(child)
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(parent, cs_mock, cpt_mock, streaming=True)
+        t._update_tempos(100.0)
+        self.assertAlmostEqual(parent.streams[keys.rhythm].tempo, 100.0)
+        self.assertAlmostEqual(child.streams[keys.rhythm].tempo, 50.0)
+
+    def test_ratio_composes_through_hierarchy(self):
+        parent = _simple_generator(note_limit=0, tempo=120)
+        parent.time_limit = 10.0
+        child = _simple_generator(note_limit=0, tempo=120)
+        child.time_limit = 0
+        child.tempo_ratio = 0.5
+        grandchild = _simple_generator(note_limit=0, tempo=120)
+        grandchild.time_limit = 0
+        grandchild.tempo_ratio = 2.0
+        child.add_generator(grandchild)
+        parent.add_generator(child)
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(parent, cs_mock, cpt_mock, streaming=True)
+        t._update_tempos(120.0)
+        # parent: 120 * 1.0 = 120
+        # child: 120 * 0.5 = 60
+        # grandchild: 120 * 0.5 * 2.0 = 120
+        self.assertAlmostEqual(parent.streams[keys.rhythm].tempo, 120.0)
+        self.assertAlmostEqual(child.streams[keys.rhythm].tempo, 60.0)
+        self.assertAlmostEqual(grandchild.streams[keys.rhythm].tempo, 120.0)
+
+    def test_ratio_one_is_identity(self):
+        g = _simple_generator(note_limit=0, tempo=120)
+        g.time_limit = 10.0
+        g.tempo_ratio = 1.0
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(g, cs_mock, cpt_mock, streaming=True)
+        t._update_tempos(90.0)
+        self.assertAlmostEqual(g.streams[keys.rhythm].tempo, 90.0)
+
+
+# ---------------------------------------------------------------------------
+# Multiple top-level generators (#47)
+# ---------------------------------------------------------------------------
+
+class TestMultiGenerator(unittest.TestCase):
+
+    def test_accepts_single_generator(self):
+        g = _simple_generator(note_limit=4)
+        t, _ = _make_streaming_thread(g)
+        self.assertEqual(len(t._generators), 1)
+        self.assertIs(t._generators[0], g)
+
+    def test_accepts_list_of_generators(self):
+        g1 = _simple_generator(note_limit=4)
+        g2 = _simple_generator(note_limit=4)
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
+        self.assertEqual(len(t._generators), 2)
+
+    def test_multiple_generators_interleaved(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 2.0
+        g1.streams[keys.instrument] = Itemstream([1])
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 2.0
+        g2.streams[keys.instrument] = Itemstream([2])
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
+        t._fill_buffer(2.0)
+        instruments = set(n.split()[0] for _, n in t._buffer)
+        self.assertIn('i1', instruments)
+        self.assertIn('i2', instruments)
+
+    def test_add_generator_mid_run(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        g1.streams[keys.instrument] = Itemstream([1])
+        t, _ = _make_streaming_thread(g1)
+        t._fill_buffer(2.0)
+        instruments_before = set(n.split()[0] for _, n in t._buffer)
+        self.assertIn('i1', instruments_before)
+        self.assertNotIn('i2', instruments_before)
+
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        g2.streams[keys.instrument] = Itemstream([2])
+        t.add_generator(g2)
+        t._buffer.clear()
+        t._fill_buffer(2.0)
+        instruments_after = set(n.split()[0] for _, n in t._buffer)
+        self.assertIn('i1', instruments_after)
+        self.assertIn('i2', instruments_after)
+
+    def test_remove_generator(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        g1.streams[keys.instrument] = Itemstream([1])
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        g2.streams[keys.instrument] = Itemstream([2])
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
+        t._fill_buffer(2.0)
+        t._buffer.clear()
+        t.remove_generator(g2)
+        t._fill_buffer(2.0)
+        instruments = set(n.split()[0] for _, n in t._buffer)
+        self.assertIn('i1', instruments)
+        self.assertNotIn('i2', instruments)
+
+    def test_selective_gen_resets_only_target(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
+        t._fill_buffer(3.0)
+        g1_time_before = g1.cur_time
+        g2_time_before = g2.cur_time
+        t.gen(generator=g1)
+        # g1 should be reset (cur_time back to start_time)
+        self.assertLess(g1.cur_time, g1_time_before)
+        # g2 should NOT be reset
+        self.assertEqual(g2.cur_time, g2_time_before)
+
+    def test_tempo_update_applies_to_all_generators(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        g2.tempo_ratio = 0.5
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 0.0
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread([g1, g2], cs_mock, cpt_mock, streaming=True)
+        t._update_tempos(100.0)
+        self.assertAlmostEqual(g1.streams[keys.rhythm].tempo, 100.0)
+        self.assertAlmostEqual(g2.streams[keys.rhythm].tempo, 50.0)
+
+
 if __name__ == '__main__':
     unittest.main()
