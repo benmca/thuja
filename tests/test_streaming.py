@@ -659,6 +659,52 @@ class TestMultiGenerator(unittest.TestCase):
         # g2 should NOT be reset
         self.assertEqual(g2.cur_time, g2_time_before)
 
+    def test_add_generator_starts_at_score_time(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 3.5
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(g1, cs_mock, cpt_mock, streaming=True)
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        t.add_generator(g2)
+        self.assertAlmostEqual(g2.start_time, 3.5)
+
+    def test_add_generator_quantize_beat(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        lf = MagicMock()
+        lf.connected = True
+        lf.next_boundary.return_value = 8.0
+        lf.csound_time_for_beat.return_value = 4.0
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 3.5
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(g1, cs_mock, cpt_mock, link_follower=lf, streaming=True)
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        t.add_generator(g2, quantize='beat')
+        lf.next_boundary.assert_called_with(3.5, quantum=1)
+        self.assertAlmostEqual(g2.start_time, 4.0)
+
+    def test_add_generator_quantize_bar(self):
+        g1 = _simple_generator(note_limit=0, tempo=120)
+        g1.time_limit = 10.0
+        lf = MagicMock()
+        lf.connected = True
+        lf.next_boundary.return_value = 12.0
+        lf.csound_time_for_beat.return_value = 6.0
+        cs_mock = MagicMock()
+        cs_mock.scoreTime.return_value = 3.5
+        cpt_mock = MagicMock()
+        t = NoteGeneratorThread(g1, cs_mock, cpt_mock, link_follower=lf, streaming=True)
+        g2 = _simple_generator(note_limit=0, tempo=120)
+        g2.time_limit = 10.0
+        t.add_generator(g2, quantize='bar')
+        lf.next_boundary.assert_called_with(3.5, quantum=4)
+        self.assertAlmostEqual(g2.start_time, 6.0)
+
     def test_tempo_update_applies_to_all_generators(self):
         g1 = _simple_generator(note_limit=0, tempo=120)
         g1.time_limit = 10.0

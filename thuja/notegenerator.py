@@ -636,17 +636,27 @@ class NoteGeneratorThread(threading.Thread):
                 self._pending_swap = _PendingSwap(notes=temp.notes, target_beat=target)
                 print("Swap queued at beat " + str(target))
 
-    def add_generator(self, generator):
+    def add_generator(self, generator, quantize=None):
         """Add a new top-level generator to the thread.
 
-        Rebuilds the cursor heap so the new generator (and its children)
-        start producing notes on the next _fill_buffer() call.
+        quantize controls when the generator starts producing notes:
+          None   — starts at current score time (immediate, may land mid-beat)
+          'beat' or 1 — next beat boundary
+          'bar'  or 4 — next bar boundary
+          N      — next N-beat boundary
+
+        Without a LinkFollower, quantize is ignored (always immediate).
         """
+        score_time = self._csound_time()
+        if quantize is not None and self.link_follower is not None:
+            q = {'beat': 1, 'bar': 4}.get(quantize, quantize)
+            target_beat = self.link_follower.next_boundary(score_time, quantum=q)
+            generator.start_time = self.link_follower.csound_time_for_beat(target_beat)
+        else:
+            generator.start_time = score_time
         self._generators.append(generator)
         generator.thread_started = True
         self._rebuild_cursors()
-        if self._streaming and self.link_follower is not None:
-            self._beat_snap_all_cursors()
 
     def remove_generator(self, generator):
         """Remove a top-level generator from the thread.
