@@ -108,6 +108,18 @@ t.remove_generator(a)                # silences immediately, flushes buffer
 
 Calling `add_generator` with the same generator twice is a no-op. Generators added mid-performance automatically sync to the current Link BPM.
 
+**Tempo ratio** (`tempo_ratio` on `NoteGenerator`): a multiplier applied when Link updates tempos. Default `1.0`. Set before or after adding:
+
+```python
+b = Line().with_rhythm('q').with_pitches('c3 d e')
+b.tempo_ratio = 0.5       # half the Link tempo
+t.add_generator(b, quantize='bar')
+# Link at 120 bpm → b plays at 60 bpm
+# Link changes to 100 → b plays at 50
+```
+
+Ratios compose through the child hierarchy: if a parent has ratio `1.0` and a child has ratio `0.5`, the child gets `bpm * 0.5`. A grandchild with ratio `2.0` gets `bpm * 0.5 * 2.0 = bpm * 1.0`.
+
 **`gen()`** — resetting generators: flushes stale notes from the buffer, resets the cursor, and re-snaps to the beat grid. Supports selective reset and full stream restart:
 
 ```python
