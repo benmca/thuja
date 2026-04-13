@@ -120,6 +120,13 @@ t.add_generator(b, quantize='bar')
 
 Ratios compose through the child hierarchy: if a parent has ratio `1.0` and a child has ratio `0.5`, the child gets `bpm * 0.5`. A grandchild with ratio `2.0` gets `bpm * 0.5 * 2.0 = bpm * 1.0`.
 
+If you change `tempo_ratio` on a running generator, call `t.update_tempos()` to apply it immediately. Otherwise the new ratio takes effect on the next Link tempo change.
+
+```python
+b.tempo_ratio = 2.0
+t.update_tempos()
+```
+
 **`gen()`** — resetting generators: flushes stale notes from the buffer, resets the cursor, and re-snaps to the beat grid. Supports selective reset and full stream restart:
 
 ```python

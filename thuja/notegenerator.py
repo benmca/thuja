@@ -898,6 +898,15 @@ class NoteGeneratorThread(threading.Thread):
                     self.g.notes = self._pending_swap.notes
                     self._pending_swap = None
 
+    def update_tempos(self):
+        """Re-apply the current Link BPM (with tempo_ratios) to all generators.
+
+        Call after changing a generator's tempo_ratio mid-performance.
+        Without a LinkFollower, this is a no-op.
+        """
+        if self.link_follower is not None and self.link_follower.bpm is not None:
+            self._update_tempos(self.link_follower.bpm)
+
     def _update_tempos(self, bpm):
         """Set tempo on all rhythm-notetype Itemstreams across all generators."""
         for root in self._generators:
