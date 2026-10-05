@@ -1,0 +1,26 @@
+ [project]
+  name = "thuja"
+  version = "0.2"
+  description = "Python Module for algorithmic composition."
+  authors = [{ name = "Ben McAllister", email = "ben@listenfaster.com" }]
+  license = { text = "PSF" }
+  keywords = ["algorithmic", "music", "thuja"]
+  requires-python = ">=3.11"
+  dependencies = [
+    "funcsigs>=1.0.2",
+]
+  
+  [project.urls]
+  Homepage = "https://github.com/benmca/thuja"
+  
+  [build-system]
+  requires = ["setuptools>=61"]
+  build-backend = "setuptools.build_meta"
+  
+  [tool.setuptools.packages.find]
+  include = ["thuja*"]
+
+[dependency-groups]
+dev = [
+    "numpy>=2.4.6",
+]
