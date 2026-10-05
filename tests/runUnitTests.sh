@@ -1,2 +1,2 @@
 rm *.pyc
-python -m unittest discover
+uv run python -m unittest discover
